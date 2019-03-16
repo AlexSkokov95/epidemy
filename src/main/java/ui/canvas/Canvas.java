@@ -3,7 +3,7 @@ package ui.canvas;
 
 import com.vaadin.flow.component.*;
 
-@Tag("ui/canvas")
+@Tag("canvas")
 public class Canvas extends Component implements HasStyle, HasSize, ClickNotifier {
     private CanvasRenderingContext2D context = new CanvasRenderingContext2D(this);
 
