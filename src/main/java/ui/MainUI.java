@@ -1,14 +1,10 @@
 package ui;
 
-import com.byteowls.vaadin.chartjs.config.BarChartConfig;
-import com.byteowls.vaadin.chartjs.data.BarDataset;
-import com.byteowls.vaadin.chartjs.data.Dataset;
+import com.byteowls.vaadin.chartjs.config.LineChartConfig;
 import com.byteowls.vaadin.chartjs.data.LineDataset;
-import com.byteowls.vaadin.chartjs.options.Position;
 import com.vaadin.annotations.Theme;
 import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.ComponentEventListener;
-import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -42,8 +38,9 @@ public class MainUI extends HorizontalLayout {
     private CanvasRenderingContext2D ctx;
     private CanvasRenderingContext2D chartCtx;
     private Upload upload;
-
+    private Map<String, Map<Integer, Integer>> allResults = new HashMap<>();
     private Map<String, String> strategies = new HashMap<>();
+    private Map<Integer, String> colors = new HashMap<>();
 
     public MainUI() {
         strategies.put("Линейный", "Seq");
@@ -58,7 +55,7 @@ public class MainUI extends HorizontalLayout {
         ctx = canvas.getContext();
         add(canvas);*/
         add(chartLayout);
-         add(fieldsLayout);
+        add(fieldsLayout);
         initChart();
         initFields();
         // initResults();
@@ -72,6 +69,10 @@ public class MainUI extends HorizontalLayout {
         chartCanvas.setId("chartCanvas");
         chartCtx = chartCanvas.getContext();
         chartLayout.add(chartCanvas);
+        colors.put(0, "rgba(30,30,30,0.5)");
+        colors.put(1, "rgba(248,0,18,0.5)");
+        colors.put(2, "rgba(254,172,0,0.5)");
+        colors.put(3, "rgba(0,190,50,0.5)");
     }
 
 
@@ -98,6 +99,9 @@ public class MainUI extends HorizontalLayout {
 
     private void initFields() {
         FormLayout form = new FormLayout();
+
+        TextField dataset = new TextField();
+        dataset.setValue("Dataset 1");
 
         TextField vertices = new TextField();
         vertices.setValue("100");
@@ -151,7 +155,8 @@ public class MainUI extends HorizontalLayout {
                 params.put("I0", infected.getValue());
                 params.put("beta", beta.getValue());
                 params.put("wormStr", strategies.get(wormStrategy.getValue()));
-                chartCtx.chart(getBarChart(Modeling.model(params)));
+                allResults.put(dataset.getValue(), Modeling.model(params));
+                chartCtx.chart(getChart());
             }
         });
 
@@ -171,55 +176,68 @@ public class MainUI extends HorizontalLayout {
                 params.put("contrwormStr", strategies.get(contrwormStrategy.getValue()));
                 params.put("gamma", gamma.getValue());
                 params.put("tR", tR.getValue());
-                chartCtx.chart(getBarChart(Modeling.model(params)));
+                allResults.put(dataset.getValue(), Modeling.model(params));
+                chartCtx.chart(getChart());
             }
         });
 
-        fieldsLayout.add(vertices, infected, wormStrategy,
-                beta, antivirus,antivirusStrategy,
+        form.add(dataset, vertices, infected, wormStrategy,
+                beta, antivirus, antivirusStrategy,
                 contrworm, contrwormStrategy, gamma, tR,
                 siModel, sirModel);
-       // fieldsLayout.add(form);
+        fieldsLayout.add(form);
     }
 
-    private String getBarChart(Map<Integer, Integer> result) {
+    private String getChart() {
         List<String> labels = new ArrayList<>();
-        for (Integer key : result.keySet()) {
 
-            if (result.keySet().size() < 50 || key % 4 == 0) {
-                labels.add(String.valueOf(key));
+        int maxLabels = 0;
+        for (Map map : allResults.values()) {
+            if (map.keySet().size() > maxLabels) {
+                maxLabels = map.keySet().size();
+            }
+        }
+        for (int i = 0; i < maxLabels; i++) {
+            if (maxLabels < 100 || i % 4 == 0) {
+                labels.add(String.valueOf(i));
             } else {
                 labels.add("");
             }
 
         }
-        BarChartConfig config = new BarChartConfig();
+
+        LineChartConfig config = new LineChartConfig();
         config
                 .data()
                 .labelsAsList(labels)
-                .addDataset(new LineDataset().type().label("Dataset 2").borderColor("black").borderWidth(3))
                 .and();
+
+        int color = 0;
+        for (Map.Entry<String, Map<Integer, Integer>> entry : allResults.entrySet()) {
+            config.data().addDataset(new LineDataset().type().label(entry.getKey()).borderColor(colors.get(color)).borderWidth(3))
+                    .and();
+            System.out.println(colors.get(color++));
+        }
 
         config.
                 options()
                 .responsive(false)
-                .title()
-                .display(true)
-                .position(Position.TOP)
-                .text("SIR model")
-                .and()
                 .done();
 
+        int datasetIndex = 0;
+        for(Map<Integer, Integer> map : allResults.values()) {
+            List<Double> data = new ArrayList<>();
+            for (Integer value : map.values()) {
+                data.add((double) value);
+            }
 
-        List<Double> data = new ArrayList<>();
-        for (Integer value : result.values()) {
-            data.add((double) value);
+            LineDataset dataset = (LineDataset) config.data().getDatasetAtIndex(datasetIndex);
+            dataset.fill(false);
+            dataset.pointRadius(1);
+            dataset.dataAsList(data);
+
+            datasetIndex++;
         }
-
-        LineDataset dataset = (LineDataset) config.data().getFirstDataset();
-        dataset.fill(false);
-        dataset.pointRadius(0);
-        dataset.dataAsList(data);
 
         return config.buildJson().toJson();
     }
@@ -238,7 +256,7 @@ public class MainUI extends HorizontalLayout {
 
             }
         });
-       // uploadLayout.add(upload);
+        // uploadLayout.add(upload);
     }
 
     protected class Result {
