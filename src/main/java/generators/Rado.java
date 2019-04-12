@@ -7,7 +7,7 @@ public class Rado extends Generator {
         super(size);
     }
 
-    public void generate() {
+    public byte[][] generate() {
         double p = 0.03;
         Random r = new Random();
         for (int i = 0; i < verticesNumber; i++) {
@@ -24,5 +24,6 @@ public class Rado extends Generator {
                 }
             }
         }
+        return adjacencyMatrix;
     }
 }

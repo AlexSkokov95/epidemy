@@ -17,7 +17,7 @@ public class Geometrical extends Generator {
         }
     }
 
-    public void generate() {
+    public byte[][] generate() {
         double r = 0;
         double p = 0.1;
         for (int i = 0; i < verticesNumber; i++) {
@@ -35,6 +35,7 @@ public class Geometrical extends Generator {
                 }
             }
         }
+        return adjacencyMatrix;
     }
 }
 

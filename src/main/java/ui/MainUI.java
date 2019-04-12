@@ -7,6 +7,7 @@ import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Label;
@@ -19,6 +20,10 @@ import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.dom.DomEvent;
 import com.vaadin.flow.dom.DomEventListener;
 import com.vaadin.flow.router.Route;
+import generators.Generator;
+import generators.Geometrical;
+import generators.Rado;
+import generators.Scalefree;
 import ui.canvas.Canvas;
 import ui.canvas.CanvasRenderingContext2D;
 
@@ -103,6 +108,11 @@ public class MainUI extends HorizontalLayout {
         TextField dataset = new TextField();
         dataset.setValue("Dataset 1");
 
+        ComboBox<String> topology = new ComboBox<>();
+        topology.setItems("Геометрический", "Безмасштабный", "Эрдеша-Реньи", "Полный");
+        topology.setValue("Геометрический");
+        topology.setLabel("Топология графа");
+
         TextField vertices = new TextField();
         vertices.setValue("100");
         vertices.setLabel("Число узлов");
@@ -155,7 +165,8 @@ public class MainUI extends HorizontalLayout {
                 params.put("I0", infected.getValue());
                 params.put("beta", beta.getValue());
                 params.put("wormStr", strategies.get(wormStrategy.getValue()));
-                allResults.put(dataset.getValue(), Modeling.model(params));
+                allResults.put(dataset.getValue(), Modeling.model(params,
+                        generateGraph(topology.getValue(), Integer.valueOf(vertices.getValue()))));
                 chartCtx.chart(getChart());
             }
         });
@@ -176,16 +187,29 @@ public class MainUI extends HorizontalLayout {
                 params.put("contrwormStr", strategies.get(contrwormStrategy.getValue()));
                 params.put("gamma", gamma.getValue());
                 params.put("tR", tR.getValue());
-                allResults.put(dataset.getValue(), Modeling.model(params));
+                allResults.put(dataset.getValue(), Modeling.model(params,
+                        generateGraph(topology.getValue(), Integer.valueOf(vertices.getValue()))));
                 chartCtx.chart(getChart());
             }
         });
 
-        form.add(dataset, vertices, infected, wormStrategy,
+        form.add(dataset, topology, vertices, infected, wormStrategy,
                 beta, antivirus, antivirusStrategy,
                 contrworm, contrwormStrategy, gamma, tR,
                 siModel, sirModel);
         fieldsLayout.add(form);
+    }
+
+    private byte[][] generateGraph(String topology, int size) {
+        Generator g;
+        if(topology.equals("Геометрический")) {
+            g = new Geometrical(size);
+        } else if (topology.equals("Безмасштабный")) {
+            g = new Scalefree(size);
+        } else {
+            g = new Rado(size);
+        }
+        return g.generate();
     }
 
     private String getChart() {

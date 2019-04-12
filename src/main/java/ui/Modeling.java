@@ -1,9 +1,6 @@
 package ui;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 public class Modeling {
     enum States {S, I, R, Rc, Ra}
@@ -12,7 +9,17 @@ public class Modeling {
 
     public static States[] states;
 
-    public static Map<Integer, Integer> model(Map<String, String> params) {
+    public static Map<Integer, Integer> model(Map<String, String> params, byte[][] adjacencyMatrix) {
+        Map<Integer, List<Integer>> hitList = new HashMap<>();
+        for(int i = 0; i < adjacencyMatrix[0].length; i++) {
+            List<Integer> adjacentVertices = new ArrayList<>();
+            for(int j = 0; j < adjacencyMatrix[0].length; j++) {
+                if(adjacencyMatrix[i][j] == 1) {
+                    adjacentVertices.add(j);
+                }
+            }
+            hitList.put(i, adjacentVertices);
+        }
         Map<Integer, Integer> avgResult = new HashMap<>();
         ArrayList<ArrayList<Integer>> res2 = new ArrayList<>();
         int sample = 100;
@@ -21,9 +28,9 @@ public class Modeling {
             ArrayList<Integer> res = new ArrayList<>();
 
             if (params.get("model").equals("SIR")) {
-                res = modelSIR(params);
+                res = modelSIR(params, hitList);
             } else if (params.get("model").equals("SI")) {
-                res = modelSI(params);
+                res = modelSI(params, hitList);
             }
             res2.add(res);
             if (res.size() > maxT) {
@@ -58,7 +65,7 @@ public class Modeling {
         return avgResult;
     }
 
-    public static ArrayList<Integer> modelSI(Map<String, String> params) {
+    public static ArrayList<Integer> modelSI(Map<String, String> params, Map<Integer, List<Integer>> hitList) {
         int N = Integer.valueOf(params.get("N"));
         int beta = Integer.valueOf(params.get("beta"));
         int I0 = Integer.valueOf(params.get("I0"));
@@ -86,18 +93,26 @@ public class Modeling {
             }
             result.add(sum);
             System.out.println("T: " + t++ + ", sum: " + sum);
+            if(t == 200) break;
             if (sum == N) break;
-            for (int i = 0; i < sum; i++) {
-                for (int j = 0; j < beta; j++) {
-                    if (strategy == Strategies.Seq) {
-                        for (int k = 0; k < N; k++) {
-                            if (states[k] == States.S) {
-                                states[k] = States.I;
-                                break;
+            for (int i = 0; i < N; i++) {
+                if(states[i] == States.I) {
+                    for (int j = 0; j < beta; j++) {
+                        List<Integer> hit = hitList.get(i);
+                        System.out.println(i);
+                        if (strategy == Strategies.Seq) {
+                            for (int k = 0; k < hit.size(); k++) {
+                                int adjacentVertex = hit.get(k);
+                                System.out.print(adjacentVertex + ", ");
+                                if (states[adjacentVertex] == States.S) {
+                                    states[adjacentVertex] = States.I;
+                                    break;
+                                }
                             }
+                        } else if (strategy == Strategies.Random) {
+                            int adjacentVertex = r.nextInt(hit.size());
+                            states[hit.get(adjacentVertex)] = States.I;
                         }
-                    } else if (strategy == Strategies.Random) {
-                        states[r.nextInt(N)] = States.I;
                     }
                 }
             }
@@ -106,7 +121,7 @@ public class Modeling {
     }
 
 
-    public static ArrayList<Integer> modelSIR(Map<String, String> params) {
+    public static ArrayList<Integer> modelSIR(Map<String, String> params, Map<Integer, List<Integer>> hitList) {
         int N = Integer.valueOf(params.get("N"));
         int beta = Integer.valueOf(params.get("beta"));
         int gamma = Integer.valueOf(params.get("gamma"));
@@ -157,19 +172,22 @@ public class Modeling {
                 if (states[i] == States.S) {
                     continue;
                 }
+
+                List<Integer> hit = hitList.get(i);
                 if (states[i] == States.Rc && t >= tR) {
                     for (int j = 0; j < gamma; j++) {
                         if (contrwormStrategy == Strategies.Seq) {
-                            for (int k = 0; k < N; k++) {
-                                if (states[k] == States.S || states[k] == States.I) {
-                                    states[k] = States.R;
+                            for (int k = 0; k < hit.size(); k++) {
+                                int adjacentVertex = hit.get(k);
+                                if (states[adjacentVertex] == States.S || states[k] == States.I) {
+                                    states[adjacentVertex] = States.R;
                                     break;
                                 }
                             }
                         } else if (contrwormStrategy == Strategies.Random) {
-                            int index = r.nextInt(N);
-                            if (states[index] == States.I || states[index] == States.S) {
-                                states[index] = States.R;
+                            int index = r.nextInt(hit.size());
+                            if (states[hit.get(index)] == States.I || states[index] == States.S) {
+                                states[hit.get(index)] = States.R;
                             }
                         }
 
@@ -177,16 +195,17 @@ public class Modeling {
                 } else if (states[i] == States.Ra && t >= tR) {
                     for (int j = 0; j < gamma; j++) {
                         if (antivirusStrategy == Strategies.Seq) {
-                            for (int k = 0; k < N; k++) {
-                                if (states[k] == States.I) {
-                                    states[k] = States.R;
+                            for (int k = 0; k < hit.size(); k++) {
+                                int adjacentVertex = hit.get(k);
+                                if (states[adjacentVertex] == States.I) {
+                                    states[adjacentVertex] = States.R;
                                     break;
                                 }
                             }
                         } else {
-                            int index = r.nextInt(N);
-                            if (states[index] == States.I) {
-                                states[index] = States.R;
+                            int index = r.nextInt(hit.size());
+                            if (states[hit.get(index)] == States.I) {
+                                states[hit.get(index)] = States.R;
                             }
                         }
 
@@ -194,20 +213,21 @@ public class Modeling {
                 } else if (states[i] == States.I) {
                     for (int j = 0; j < beta; j++) {
                         if (wormStrategy == Strategies.Seq) {
-                            for (int k = 0; k < N; k++) {
-                                if (states[k] == States.S) {
-                                    states[k] = States.I;
+                            for (int k = 0; k < hit.size(); k++) {
+                                int adjacentVertex = hit.get(k);
+                                if (states[adjacentVertex] == States.S) {
+                                    states[adjacentVertex] = States.I;
                                     break;
-                                } else if (states[k] == States.Rc && contrwormStrategy == Strategies.Contr && t >= tR) {
+                                } else if (states[adjacentVertex] == States.Rc && contrwormStrategy == Strategies.Contr && t >= tR) {
                                     states[i] = States.R;
                                     break;
                                 }
                             }
                         } else if (wormStrategy == Strategies.Random) {
-                            int index = r.nextInt(N);
-                            if (states[index] == States.S) {
-                                states[index] = States.I;
-                            } else if (states[index] == States.Rc && contrwormStrategy == Strategies.Contr && t >= tR) {
+                            int index = r.nextInt(hit.size());
+                            if (states[hit.get(index)] == States.S) {
+                                states[hit.get(index)] = States.I;
+                            } else if (states[hit.get(index)] == States.Rc && contrwormStrategy == Strategies.Contr && t >= tR) {
                                 states[i] = States.R;
                             }
                         }
