@@ -19,7 +19,7 @@ public class Geometrical extends Generator {
 
     public byte[][] generate() {
         double r = 0;
-        double p = 0.1;
+        double p = 0.3;
         for (int i = 0; i < verticesNumber; i++) {
             for (int j = 0; j < verticesNumber; j++) {
                 if (i != j) {

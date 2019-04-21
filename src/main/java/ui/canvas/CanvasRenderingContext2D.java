@@ -26,7 +26,7 @@ public class CanvasRenderingContext2D {
     }
 
     public void arc(double x, double y, double radius, double startAngle, double endAngle, boolean antiClockwise) {
-        this.runScript(String.format("var ui.canvas=document.getElementById('ui.canvas');$0.getContext('2d').arc(%s-ui.canvas.offsetLeft, %s-ui.canvas.offsetTop, %s, %s,%s,%s);",
+        this.runScript(String.format("var canvas=document.getElementById('canvas');$0.getContext('2d').arc(%s-canvas.offsetLeft, %s-canvas.offsetTop, %s, %s,%s,%s);",
                 x, y, radius, startAngle, endAngle, antiClockwise));
     }
 
@@ -59,7 +59,7 @@ public class CanvasRenderingContext2D {
     }
 
     public void fillRect(double x, double y, double width, double height) {
-        this.callJsMethod("fillRect", x, y, width, height);
+        this.runScript(String.format("var canvas=document.getElementById(\"canvas\");$0.getContext('2d').fillRect(%s, %s, %s, %s);", x, y, width, height));
     }
 
     public void fillText(String text, double x, double y) {
@@ -67,11 +67,11 @@ public class CanvasRenderingContext2D {
     }
 
     public void lineTo(double x, double y) {
-        this.runScript(String.format("var ui.canvas=document.getElementById(\"ui.canvas\");$0.getContext('2d').lineTo(%s-ui.canvas.offsetLeft, %s-ui.canvas.offsetTop);", x, y));
+        this.runScript(String.format("var canvas=document.getElementById(\"canvas\");$0.getContext('2d').lineTo(%s, %s);", x, y));
     }
 
     public void moveTo(double x, double y) {
-        this.callJsMethod("moveTo", x, y);
+        this.runScript(String.format("var canvas=document.getElementById(\"canvas\");$0.getContext('2d').moveTo(%s, %s);", x, y));
     }
 
     public void rect(double x, double y, double width, double height) {
