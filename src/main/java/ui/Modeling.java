@@ -514,7 +514,7 @@ public class Modeling {
 
     private static void writeStatesToFile(Integer[] stateCodes) {
         try {
-            FileWriter dos = new FileWriter(new File("D:/matrix.txt"), true);
+            FileWriter dos = new FileWriter(new File("C:\\Users\\tomak\\matrix.txt"), true);
             for (int i = 0; i < states.length; i++) {
                if(stateCodes[i] == null) {
                    stateCodes[i] = getCode(states[i]);

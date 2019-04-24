@@ -177,11 +177,10 @@ public class MainUI extends HorizontalLayout {
             public void valueChanged(AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String> radioButtonGroupStringComponentValueChangeEvent) {
                 if (group.getValue().equals("Генерировать")) {
                     topology.setVisible(true);
-                    vertices.setVisible(true);
                     upload.setVisible(false);
                 } else {
                     topology.setVisible(false);
-                    vertices.setVisible(false);
+                    vertices.setValue("");
                     upload.setVisible(true);
                 }
             }
@@ -220,6 +219,11 @@ public class MainUI extends HorizontalLayout {
         modelBtn.addClickListener(new ComponentEventListener<ClickEvent<Button>>() {
             @Override
             public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
+                if(group.getValue().equals("Генерировать")) {
+                    matrix = generateGraph(topology.getValue(), Integer.valueOf(vertices.getValue()));
+                    writeToFile(matrix);
+                }
+                vertices.setValue(String.valueOf(matrix.length));
                 Map<String, String> params = new HashMap<>();
                 switch (modelGroup.getValue()) {
                     case "SI":
@@ -236,6 +240,7 @@ public class MainUI extends HorizontalLayout {
                         break;
                 }
                 params.put("I0", infected.getValue());
+                params.put("N", String.valueOf(matrix.length));
                 params.put("beta", beta.getValue());
                 params.put("wormStr", strategies.get(wormStrategy.getValue()));
                 params.put("R0", antivirus.getValue());
@@ -244,13 +249,7 @@ public class MainUI extends HorizontalLayout {
                 params.put("contrwormStr", strategies.get(contrwormStrategy.getValue()));
                 params.put("gamma", gamma.getValue());
                 params.put("tR", tR.getValue());
-                if(group.getValue().equals("Генерировать")) {
-                    matrix = generateGraph(topology.getValue(), Integer.valueOf(vertices.getValue()));
-                    params.put("N", String.valueOf(matrix.length));
-                    writeToFile(matrix);
-                } else {
-                    params.put("N", vertices.getValue());
-                }
+
                 allResults.put(dataset.getValue(), Modeling.model(params, matrix));
                 chartCtx.chart(getChart());
             }
@@ -266,7 +265,7 @@ public class MainUI extends HorizontalLayout {
 
     private void writeToFile(byte[][] matrix) {
         try {
-            PrintWriter dos = new PrintWriter(new FileWriter(new File("D:/matrix.txt")));
+            PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\tomak\\matrix.txt")));
             for (int i = 0; i < matrix[0].length; i++) {
                 StringBuilder line = new StringBuilder();
                 for (int j = 0; j < matrix[i].length; j++) {
@@ -288,8 +287,10 @@ public class MainUI extends HorizontalLayout {
             g = new Geometrical(size);
         } else if (topology.equals("Безмасштабный")) {
             g = new Scalefree(size);
-        } else {
+        } else if (topology.equals("Эрдеша-Реньи")){
             g = new Rado(size);
+        } else {
+            g = new Generator(size);
         }
         return g.generate();
     }

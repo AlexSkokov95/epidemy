@@ -1,6 +1,6 @@
 package generators;
 
-public abstract class Generator {
+public class Generator {
     protected byte[][] adjacencyMatrix;
     protected int verticesNumber;
 
@@ -17,5 +17,14 @@ public abstract class Generator {
         }
     }
 
-    public abstract byte[][] generate();
+    public byte[][] generate() {
+        for (int i = 0; i < verticesNumber; i++) {
+            for (int j = 0; j < verticesNumber; j++) {
+                if(i != j) {
+                    adjacencyMatrix[i][j] = 1;
+                }
+            }
+        }
+        return adjacencyMatrix;
+    }
 }

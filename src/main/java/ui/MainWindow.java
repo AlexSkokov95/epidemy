@@ -4,6 +4,7 @@ import com.vaadin.annotations.Theme;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.html.Label;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
@@ -31,11 +32,11 @@ public class MainWindow extends HorizontalLayout {
     private static final int HEIGHT = 600;
     private static final int OFFSET = 16;
 
-    private Button button;
+    private Button modelBtn;
     private Button writeBtn;
     private Canvas canvas;
     private Upload upload;
-    private int sizeGrid = 20;
+    private int gridSize = 20;
     private int density = 2;
     CanvasRenderingContext2D ctx;
     private VerticalLayout layout;
@@ -56,15 +57,35 @@ public class MainWindow extends HorizontalLayout {
         layout.setSpacing(true);
         layout.setMargin(true);
 
+        initCanvas();
+        VerticalLayout canvasLayout = new VerticalLayout();
 
-        button = new Button("Моделировать");
+        add(canvasLayout);
+        canvasLayout.add(canvas);
+        add(layout);
+        initUpload();
 
+        layout.add(upload);
+
+        initGridSize();
+        initDensityField();
+        initDotsFields();
+
+        initSegments();
+
+        HorizontalLayout buttonsLayout = new HorizontalLayout();
+
+        modelBtn = new Button("Моделировать");
         writeBtn = new Button("Сохранить");
+
+        buttonsLayout.add(modelBtn, writeBtn);
+        layout.add(buttonsLayout);
+
         writeBtn.addClickListener(new ComponentEventListener<ClickEvent<Button>>() {
             @Override
             public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
                 try {
-                    PrintWriter dos = new PrintWriter(new FileWriter(new File("D:/matrix.txt")));
+                    PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\tomak\\matrix.txt")));
                     for (int i = 0; i < matrix[0].length; i++) {
                         StringBuilder line = new StringBuilder();
                         for (int j = 0; j < matrix[i].length; j++) {
@@ -81,24 +102,7 @@ public class MainWindow extends HorizontalLayout {
             }
         });
 
-        initCanvas();
-        VerticalLayout canvasLayout = new VerticalLayout();
-
-        add(canvasLayout);
-        canvasLayout.add(canvas);
-        add(layout);
-        initUpload();
-
-        layout.add(button);
-        layout.add(upload);
-
-        initsizeGrid();
-        initDensityField();
-        initDotsFields();
-
-        initSegments();
-
-        button.addClickListener(new ComponentEventListener<ClickEvent<Button>>() {
+        modelBtn.addClickListener(new ComponentEventListener<ClickEvent<Button>>() {
             @Override
             public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
                 dots = new ArrayList<>();
@@ -110,8 +114,8 @@ public class MainWindow extends HorizontalLayout {
                 int dots2 = Integer.valueOf(dots2Field.getValue());
                 int dots3 = Integer.valueOf(dots3Field.getValue());
 
-                for (int i = 0; i < sizeGrid; i++) {
-                    for (int j = 0; j < sizeGrid; j++) {
+                for (int i = 0; i < gridSize; i++) {
+                    for (int j = 0; j < gridSize; j++) {
                         if (segments[i][j].getDensity() == 0) {
                             quantityDots = 0;
                         } else if (segments[i][j].getDensity() == 1) {
@@ -120,10 +124,10 @@ public class MainWindow extends HorizontalLayout {
                             quantityDots = dots2;
                         } else quantityDots = dots3;
 
-                        if (sizeGrid == 10) {
+                        if (gridSize == 10) {
                             varRandom = 60;
                             varSize = 5;
-                        } else if (sizeGrid == 20) {
+                        } else if (gridSize == 20) {
                             varRandom = 30;
                             varSize = 4;
                         } else {
@@ -192,15 +196,15 @@ public class MainWindow extends HorizontalLayout {
 
                 System.out.println("x: " + x + ", y: " + y);
 
-                int width = WIDTH / sizeGrid;
-                int height = HEIGHT / sizeGrid;
+                int width = WIDTH / gridSize;
+                int height = HEIGHT / gridSize;
 
                 int newDensity = density;
 
-                for (int j = 1; j <= sizeGrid; j++) {
+                for (int j = 1; j <= gridSize; j++) {
                     if (x <= (width * j)) {
                         j--;
-                        for (int i = 1; i <= sizeGrid; i++) {
+                        for (int i = 1; i <= gridSize; i++) {
                             if (y <= (height * i)) {
                                 i--;
                                 Segment seg = segments[i][j];
@@ -209,36 +213,36 @@ public class MainWindow extends HorizontalLayout {
                                 newDensity--;
                                 if (newDensity > 0) {
                                     if (i > 0) setDensity(segments[i - 1][j], newDensity);
-                                    if (i < sizeGrid - 1) setDensity(segments[i + 1][j], newDensity);
+                                    if (i < gridSize - 1) setDensity(segments[i + 1][j], newDensity);
                                     if (j > 0) setDensity(segments[i][j - 1], newDensity);
-                                    if (j < sizeGrid - 1) setDensity(segments[i][j + 1], newDensity);
+                                    if (j < gridSize - 1) setDensity(segments[i][j + 1], newDensity);
                                     if (i > 0 && j > 0) setDensity(segments[i - 1][j - 1], newDensity);
-                                    if (i < sizeGrid - 1 && j < sizeGrid - 1)
+                                    if (i < gridSize - 1 && j < gridSize - 1)
                                         setDensity(segments[i + 1][j + 1], newDensity);
-                                    if (i > 0 && j < sizeGrid - 1) setDensity(segments[i - 1][j + 1], newDensity);
-                                    if (i < sizeGrid - 1 && j > 0) setDensity(segments[i + 1][j - 1], newDensity);
+                                    if (i > 0 && j < gridSize - 1) setDensity(segments[i - 1][j + 1], newDensity);
+                                    if (i < gridSize - 1 && j > 0) setDensity(segments[i + 1][j - 1], newDensity);
                                 }
                                 newDensity--;
                                 if (newDensity > 0) {
                                     if (i > 1) setDensity(segments[i - 2][j], newDensity);
-                                    if (i < sizeGrid - 2) setDensity(segments[i + 2][j], newDensity);
-                                    if (i > 1 && j < sizeGrid - 1) setDensity(segments[i - 2][j + 1], newDensity);
-                                    if (i < sizeGrid - 2 && j < sizeGrid - 1)
+                                    if (i < gridSize - 2) setDensity(segments[i + 2][j], newDensity);
+                                    if (i > 1 && j < gridSize - 1) setDensity(segments[i - 2][j + 1], newDensity);
+                                    if (i < gridSize - 2 && j < gridSize - 1)
                                         setDensity(segments[i + 2][j + 1], newDensity);
                                     if (i > 1 && j > 0) setDensity(segments[i - 2][j - 1], newDensity);
-                                    if (i < sizeGrid - 2 && j > 0) setDensity(segments[i + 2][j - 1], newDensity);
+                                    if (i < gridSize - 2 && j > 0) setDensity(segments[i + 2][j - 1], newDensity);
                                     if (j > 1) setDensity(segments[i][j - 2], newDensity);
-                                    if (j < sizeGrid - 2) setDensity(segments[i][j + 2], newDensity);
-                                    if (j > 1 && i < sizeGrid - 1) setDensity(segments[i + 1][j - 2], newDensity);
-                                    if (j < sizeGrid - 2 && i < sizeGrid - 1)
+                                    if (j < gridSize - 2) setDensity(segments[i][j + 2], newDensity);
+                                    if (j > 1 && i < gridSize - 1) setDensity(segments[i + 1][j - 2], newDensity);
+                                    if (j < gridSize - 2 && i < gridSize - 1)
                                         setDensity(segments[i + 1][j + 2], newDensity);
                                     if (j > 1 && i > 0) setDensity(segments[i - 1][j - 2], newDensity);
-                                    if (j < sizeGrid - 2 && i > 0) setDensity(segments[i - 1][j + 2], newDensity);
+                                    if (j < gridSize - 2 && i > 0) setDensity(segments[i - 1][j + 2], newDensity);
                                     if (i > 1 && j > 1) setDensity(segments[i - 2][j - 2], newDensity);
-                                    if (i < sizeGrid - 2 && j < sizeGrid - 2)
+                                    if (i < gridSize - 2 && j < gridSize - 2)
                                         setDensity(segments[i + 2][j + 2], newDensity);
-                                    if (i > 1 && j < sizeGrid - 2) setDensity(segments[i - 2][j + 2], newDensity);
-                                    if (i < sizeGrid - 2 && j > 1) setDensity(segments[i + 2][j - 2], newDensity);
+                                    if (i > 1 && j < gridSize - 2) setDensity(segments[i - 2][j + 2], newDensity);
+                                    if (i < gridSize - 2 && j > 1) setDensity(segments[i + 2][j - 2], newDensity);
                                 }
 
                                 break;
@@ -281,17 +285,22 @@ public class MainWindow extends HorizontalLayout {
     }
 
     private void initDotsFields() {
-        dots1Field = new TextField("1");
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        Label label = new Label("Число точек для каждого значения плотности");
+        layout.add(label);
+        layout.add(horizontalLayout);
+
+        dots1Field = new TextField();
         dots1Field.setValue("1");
-        layout.add(dots1Field);
+        horizontalLayout.add(dots1Field);
 
-        dots2Field = new TextField("2");
+        dots2Field = new TextField();
         dots2Field.setValue("2");
-        layout.add(dots2Field);
+        horizontalLayout.add(dots2Field);
 
-        dots3Field = new TextField("3");
+        dots3Field = new TextField();
         dots3Field.setValue("3");
-        layout.add(dots3Field);
+        horizontalLayout.add(dots3Field);
 
         radiusField = new TextField("Радиус");
         radiusField.setValue("20");
@@ -311,20 +320,20 @@ public class MainWindow extends HorizontalLayout {
     }
 
     private void initSegments() {
-        segments = new Segment[sizeGrid][];
-        for (int i = 0; i < sizeGrid; i++) {
-            segments[i] = new Segment[sizeGrid];
-            for (int j = 0; j < sizeGrid; j++) {
-                segments[i][j] = new Segment(i * sizeGrid + j,
-                        WIDTH / sizeGrid * j,
-                        HEIGHT / sizeGrid * i);
+        segments = new Segment[gridSize][];
+        for (int i = 0; i < gridSize; i++) {
+            segments[i] = new Segment[gridSize];
+            for (int j = 0; j < gridSize; j++) {
+                segments[i][j] = new Segment(i * gridSize + j,
+                        WIDTH / gridSize * j,
+                        HEIGHT / gridSize * i);
             }
         }
     }
 
     private void densityChanged(Segment s) {
         int k = (245 - 255 / 4 * s.getDensity());
-        drawRect(s.getX(), s.getY(), WIDTH / sizeGrid, HEIGHT / sizeGrid,
+        drawRect(s.getX(), s.getY(), WIDTH / gridSize, HEIGHT / gridSize,
                 String.format("rgb(%s, %s, %s)", k, k, k));
     }
 
@@ -339,19 +348,19 @@ public class MainWindow extends HorizontalLayout {
     }
 
     //Code for ComboBox size
-    private void initsizeGrid() {
+    private void initGridSize() {
         ComboBox<String> comboBox = new ComboBox<>("Размер сетки");
         comboBox.setItems("10", "20", "30");
         layout.add(comboBox);
         comboBox.addValueChangeListener(new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<ComboBox<String>, String>>() {
             @Override
             public void valueChanged(AbstractField.ComponentValueChangeEvent<ComboBox<String>, String> comboBoxStringComponentValueChangeEvent) {
-                sizeGrid = Integer.valueOf(comboBoxStringComponentValueChangeEvent.getValue());
+                gridSize = Integer.valueOf(comboBoxStringComponentValueChangeEvent.getValue());
                 initSegments();
                 ctx.clearRect(0, 0, WIDTH, HEIGHT);
-                for (int i = 1; i < sizeGrid; i++) {
-                    int x1 = WIDTH / sizeGrid * i;
-                    int x2 = WIDTH / sizeGrid * i;
+                for (int i = 1; i < gridSize; i++) {
+                    int x1 = WIDTH / gridSize * i;
+                    int x2 = WIDTH / gridSize * i;
                     int y1 = 0;
                     int y2 = HEIGHT;
                     System.out.println("Vert: (" + x1 + ", " + y1 + "), (" + x2 + ", " + y2 + ")");
@@ -359,8 +368,8 @@ public class MainWindow extends HorizontalLayout {
 
                     x1 = 0;
                     x2 = WIDTH;
-                    y1 = HEIGHT / sizeGrid * i;
-                    y2 = HEIGHT / sizeGrid * i;
+                    y1 = HEIGHT / gridSize * i;
+                    y2 = HEIGHT / gridSize * i;
                     System.out.println("Hor: (" + x1 + ", " + y1 + "), (" + x2 + ", " + y2 + ")");
                     drawLine(x1, y1, x2, y2, "black");
                 }
@@ -381,6 +390,8 @@ public class MainWindow extends HorizontalLayout {
     private void drawRect(double x, double y, double w, double h, String color) {
         ctx.save();
         ctx.setFillStyle(color);
+        ctx.setStrokeStyle("white");
+        ctx.strokeRect(x, y, w, h);
         ctx.fillRect(x, y, w, h);
         ctx.restore();
     }
