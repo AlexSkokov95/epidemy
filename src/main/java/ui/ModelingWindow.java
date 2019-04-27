@@ -27,7 +27,7 @@ import java.util.Random;
 
 @Theme("valo")
 @Route("draw")
-public class MainWindow extends HorizontalLayout {
+public class ModelingWindow extends HorizontalLayout {
     private static final int WIDTH = 600;
     private static final int HEIGHT = 600;
     private static final int OFFSET = 16;
@@ -51,7 +51,7 @@ public class MainWindow extends HorizontalLayout {
     private List<Dot> dots;
     private int[][] matrix;
 
-    public MainWindow() {
+    public ModelingWindow() {
 
         layout = new VerticalLayout();
         layout.setSpacing(true);
@@ -258,6 +258,8 @@ public class MainWindow extends HorizontalLayout {
     private void initUpload() {
         MemoryBuffer buffer = new MemoryBuffer();
         upload = new Upload(buffer);
+        upload.setDropLabel(new Label("Drop"));
+        upload.setUploadButton(new Button("Upload"));
 
         upload.addSucceededListener(event -> {
             Element image = new Element("object");

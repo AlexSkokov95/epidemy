@@ -29,7 +29,7 @@ import java.util.*;
 
 @Theme("valo")
 @Route("")
-public class MainUI extends HorizontalLayout {
+public class MapWindow extends HorizontalLayout {
     private static final int CANVAS_SIZE = 500;
     private static final int CHART_HEIGHT = 650;
     private static final int CHART_WIDTH = 1050;
@@ -50,7 +50,7 @@ public class MainUI extends HorizontalLayout {
 
     private byte[][] matrix;
 
-    public MainUI() {
+    public MapWindow() {
         strategies.put("Линейный", "Seq");
         strategies.put("Случайный", "Random");
         strategies.put("Контратака", "Contr");
@@ -59,10 +59,6 @@ public class MainUI extends HorizontalLayout {
         fieldsLayout1 = new FormLayout();
         fieldsLayout2 = new FormLayout();
 
-      /*  canvas = new Canvas(CANVAS_SIZE, CANVAS_SIZE);
-        canvas.setId("canvas");
-        ctx = canvas.getContext();
-        add(canvas);*/
 
         add(fieldsLayout1);
         add(fieldsLayout2);
@@ -70,9 +66,6 @@ public class MainUI extends HorizontalLayout {
         initUpload();
         initChart();
         initFields();
-        // initResults();
-
-        //initTopologyTypeGroup();
         UI.getCurrent().getPage().addJavaScript("https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.js");
     }
 
@@ -85,27 +78,6 @@ public class MainUI extends HorizontalLayout {
         colors.put(1, "rgba(248,0,18,0.5)");
         colors.put(2, "rgba(254,172,0,0.5)");
         colors.put(3, "rgba(0,190,50,0.5)");
-    }
-
-
-    private void initTopologyTypeGroup() {
-        Label topologyLabel = new Label("Способ определения топологии");
-        RadioButtonGroup<String> group = new RadioButtonGroup<>();
-        group.setItems("Автоматически", "Эрдеша-Реньи", "Безмасштабный", "Геометрический");
-        group.getElement().getStyle().set("display", "flex");
-        group.getElement().getStyle().set("flexDirection", "column");
-    }
-
-    private void initResults() {
-        FormLayout formLayout = new FormLayout();
-        Label label1 = new Label("Средний коэффициент кластеризации");
-        Label value = new Label("1");
-        Label label2 = new Label("Средний коэффициент ");
-        Label value2 = new Label("2.3");
-
-        formLayout.addFormItem(value, label1);
-        formLayout.addFormItem(value2, label2);
-        chartLayout.add(formLayout);
     }
 
     private void initFields() {
@@ -352,6 +324,8 @@ public class MainUI extends HorizontalLayout {
     private void initUpload() {
         MemoryBuffer buffer = new MemoryBuffer();
         upload = new Upload(buffer);
+        upload.setDropLabel(new Label("Drop"));
+        upload.setUploadButton(new Button("Upload"));
         upload.setVisible(false);
 
         upload.addSucceededListener(event -> {
