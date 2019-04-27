@@ -58,6 +58,28 @@
             <version>3.0.1</version>
             <scope>provided</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.webjars.bowergithub.vaadin/vaadin-text-field -->
+        <!-- https://mvnrepository.com/artifact/com.vaadin/vaadin-text-field-flow -->
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-text-field-flow</artifactId>
+            <version>1.3.0</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.vaadin/vaadin-button-flow -->
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-button-flow</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.vaadin/vaadin-radio-button-flow -->
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-radio-button-flow</artifactId>
+            <version>1.3.1</version>
+        </dependency>
+
+
 
         <dependency>
             <groupId>org.vaadin.pekkam</groupId>

@@ -1,388 +1,459 @@
 package ui;
 
-import com.byteowls.vaadin.chartjs.config.LineChartConfig;
-import com.byteowls.vaadin.chartjs.data.LineDataset;
-import com.vaadin.annotations.Theme;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Label;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.dom.DomEvent;
 import com.vaadin.flow.dom.DomEventListener;
+import com.vaadin.flow.dom.Element;
 import com.vaadin.flow.router.Route;
-import generators.Generator;
-import generators.Geometrical;
-import generators.Rado;
-import generators.Scalefree;
+import com.vaadin.flow.router.RouterLink;
+import com.vaadin.flow.server.StreamResource;
+
+import com.vaadin.flow.theme.Theme;
+import com.vaadin.flow.theme.lumo.Lumo;
 import ui.canvas.Canvas;
 import ui.canvas.CanvasRenderingContext2D;
 
 import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
-@Theme("valo")
-@Route("")
+
+@Theme(value = Lumo.class)
+@Route("draw")
 public class MapWindow extends HorizontalLayout {
-    private static final int CANVAS_SIZE = 500;
-    private static final int CHART_HEIGHT = 650;
-    private static final int CHART_WIDTH = 1050;
+    private static final int WIDTH = 600;
+    private static final int HEIGHT = 600;
+    private static final int OFFSET_X = 688;
+    private static final int OFFSET_Y = 16;
 
-    private VerticalLayout chartLayout;
-    private VerticalLayout fieldsLayout1;
-    private VerticalLayout fieldsLayout2;
-
+    private Button modelBtn;
+    private Button writeBtn;
     private Canvas canvas;
-    private Canvas chartCanvas;
-    private CanvasRenderingContext2D ctx;
-    private CanvasRenderingContext2D chartCtx;
     private Upload upload;
+    private int gridSize = 20;
+    private int density = 2;
+    CanvasRenderingContext2D ctx;
+    private VerticalLayout layout;
 
-    private Map<String, Map<Integer, Integer>> allResults = new HashMap<>();
-    private Map<String, String> strategies = new HashMap<>();
-    private Map<Integer, String> colors = new HashMap<>();
+    NumberField dots1Field;
+    NumberField dots2Field;
+    NumberField dots3Field;
 
-    private byte[][] matrix;
+    TextField radiusField;
+
+    private Segment[][] segments;
+    private List<Dot> dots;
+    private int[][] matrix;
 
     public MapWindow() {
-        strategies.put("Линейный", "Seq");
-        strategies.put("Случайный", "Random");
-        strategies.put("Контратака", "Contr");
 
-        chartLayout = new VerticalLayout();
+        layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setMargin(true);
 
-        HorizontalLayout fieldsLayout = new HorizontalLayout();
-        fieldsLayout1 = new VerticalLayout();
-        fieldsLayout2 = new VerticalLayout();
-        fieldsLayout.add(fieldsLayout1, fieldsLayout2);
+        initCanvas();
+        VerticalLayout canvasLayout = new VerticalLayout();
+        canvasLayout.add(canvas);
+        add(layout);
+        add(canvasLayout);
+        add(new VerticalLayout());
 
-        VerticalLayout l = new VerticalLayout();
-        l.add(fieldsLayout);
+        Div toModel = new Div();
+        toModel.add(new RouterLink("Назад", ModelingWindow.class));
+        layout.add(toModel);
 
-        add(l);
-        add(chartLayout);
         initUpload();
-        initChart();
-        initFields();
-        UI.getCurrent().getPage().addJavaScript("https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.js");
-    }
+        layout.add(upload);
 
-    private void initChart() {
-        chartCanvas = new Canvas(CHART_WIDTH, CHART_HEIGHT);
-        chartCanvas.setId("chartCanvas");
-        chartCtx = chartCanvas.getContext();
-        chartLayout.add(chartCanvas);
-        colors.put(0, "rgba(30,30,30,0.5)");
-        colors.put(1, "rgba(248,0,18,0.5)");
-        colors.put(2, "rgba(254,172,0,0.5)");
-        colors.put(3, "rgba(0,190,50,0.5)");
-    }
+        initGridSize();
+        initDensityField();
+        initDotsFields();
 
-    private void initFields() {
+        initSegments();
 
-        TextField dataset = new TextField("Название");
-        dataset.setValue("Dataset 1");
+        HorizontalLayout buttonsLayout = new HorizontalLayout();
 
-        RadioButtonGroup<String> group = new RadioButtonGroup<>();
-        group.setItems("Генерировать", "Загрузить из файла");
-        group.getElement().getStyle().set("display", "flex");
-        group.getElement().getStyle().set("flexDirection", "column");
-        group.setValue("Генерировать");
+        modelBtn = new Button("Моделировать");
+        modelBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        writeBtn = new Button("Сохранить");
 
-        ComboBox<String> topology = new ComboBox<>();
-        topology.setItems("Геометрический", "Безмасштабный", "Эрдеша-Реньи", "Полный");
-        topology.setValue("Геометрический");
-        topology.setLabel("Топология графа");
+        buttonsLayout.add(modelBtn, writeBtn);
+        layout.add(buttonsLayout);
 
-        TextField vertices = new TextField();
-        vertices.setValue("100");
-        vertices.setLabel("Число узлов");
-
-        Label modelGroupName = new Label("Модель");
-        RadioButtonGroup<String> modelGroup = new RadioButtonGroup<>();
-        modelGroup.setItems("SI", "SIR", "SIR с вакцинацией и без", "SIS");
-        modelGroup.getElement().getStyle().set("display", "flex");
-        modelGroup.getElement().getStyle().set("flexDirection", "column");
-        modelGroup.setValue("SIR");
-
-        TextField infected = new TextField();
-        infected.setValue("1");
-        infected.setLabel("Число червей");
-
-        ComboBox<String> wormStrategy = new ComboBox<>();
-        wormStrategy.setItems("Линейный", "Случайный");
-        wormStrategy.setValue("Линейный");
-        wormStrategy.setLabel("Стратегия поиска червя");
-
-        TextField beta = new TextField();
-        beta.setValue("1");
-        beta.setLabel("beta");
-
-        TextField antivirus = new TextField();
-        antivirus.setValue("5");
-        antivirus.setLabel("Число антивирусов");
-
-        ComboBox<String> antivirusStrategy = new ComboBox<>();
-        antivirusStrategy.setItems("Линейный", "Случайный");
-        antivirusStrategy.setValue("Линейный");
-        antivirusStrategy.setLabel("Стратегия поиска антивируса");
-
-        TextField contrworm = new TextField();
-        contrworm.setValue("0");
-        contrworm.setLabel("Число контрчервей");
-
-        ComboBox<String> contrwormStrategy = new ComboBox<>();
-        contrwormStrategy.setLabel("Стратегия поиска контрчервя");
-        contrwormStrategy.setItems("Линейный", "Случайный", "Контратака");
-        contrwormStrategy.setValue("Линейный");
-
-        TextField gamma = new TextField("gamma");
-        gamma.setValue("1");
-
-        TextField tR = new TextField("Время начала работы");
-        tR.setValue("5");
-
-        group.addValueChangeListener(new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String>>() {
+        writeBtn.addClickListener(new ComponentEventListener<ClickEvent<Button>>() {
             @Override
-            public void valueChanged(AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String> radioButtonGroupStringComponentValueChangeEvent) {
-                if (group.getValue().equals("Генерировать")) {
-                    topology.setVisible(true);
-                    upload.setVisible(false);
-                } else {
-                    topology.setVisible(false);
-                    vertices.setValue("");
-                    upload.setVisible(true);
+            public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
+                try {
+                    PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\tomak\\matrix.txt")));
+                    for (int i = 0; i < matrix[0].length; i++) {
+                        StringBuilder line = new StringBuilder();
+                        for (int j = 0; j < matrix[i].length; j++) {
+                            line.append(matrix[i][j]);
+                        }
+                        dos.println(line.toString());
+                    }
+                    dos.close();
+                } catch (FileNotFoundException e) {
+                    System.out.println("File not found");
+                } catch (IOException e) {
+                    System.out.println("IOException");
                 }
             }
         });
 
-        modelGroup.addValueChangeListener(new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String>>() {
-            @Override
-            public void valueChanged(AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String> radioButtonGroupStringComponentValueChangeEvent) {
-                if (modelGroup.getValue().equals("SI")) {
-                    antivirus.setVisible(false);
-                    antivirusStrategy.setVisible(false);
-                    contrworm.setVisible(false);
-                    contrwormStrategy.setVisible(false);
-                    gamma.setVisible(false);
-                    tR.setVisible(false);
-                } else if (modelGroup.getValue().equals("SIS")) {
-                    antivirus.setVisible(false);
-                    antivirusStrategy.setVisible(false);
-                    contrworm.setVisible(true);
-                    contrwormStrategy.setVisible(true);
-                    gamma.setVisible(true);
-                    tR.setVisible(true);
-                } else {
-                    antivirus.setVisible(true);
-                    antivirusStrategy.setVisible(true);
-                    contrworm.setVisible(true);
-                    contrwormStrategy.setVisible(true);
-                    gamma.setVisible(true);
-                    tR.setVisible(true);
-                }
-            }
-        });
-
-
-        Button modelBtn = new Button("Моделировать");
         modelBtn.addClickListener(new ComponentEventListener<ClickEvent<Button>>() {
             @Override
             public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
-                if(group.getValue().equals("Генерировать")) {
-                    matrix = generateGraph(topology.getValue(), Integer.valueOf(vertices.getValue()));
-                    writeToFile(matrix);
-                }
-                vertices.setValue(String.valueOf(matrix.length));
-                Map<String, String> params = new HashMap<>();
-                switch (modelGroup.getValue()) {
-                    case "SI":
-                        params.put("model", "SI");
-                        break;
-                    case "SIR":
-                        params.put("model", "SIR");
-                        break;
-                    case "SIS":
-                        params.put("model", "SIS");
-                        break;
-                    case "SIR с вакцинацией и без":
-                        params.put("model", "SIR2");
-                        break;
-                }
-                params.put("I0", infected.getValue());
-                params.put("N", String.valueOf(matrix.length));
-                params.put("beta", beta.getValue());
-                params.put("wormStr", strategies.get(wormStrategy.getValue()));
-                params.put("R0", antivirus.getValue());
-                params.put("antivirusStr", strategies.get(antivirusStrategy.getValue()));
-                params.put("Rc0", contrworm.getValue());
-                params.put("contrwormStr", strategies.get(contrwormStrategy.getValue()));
-                params.put("gamma", gamma.getValue());
-                params.put("tR", tR.getValue());
+                dots = new ArrayList<>();
+                int quantityDots;
+                int varRandom;
+                int varSize = 0;
+                Random r = new Random();
+                int dots1 = Integer.valueOf(String.valueOf(dots1Field.getValue()));
+                int dots2 = Integer.valueOf(String.valueOf(dots2Field.getValue()));
+                int dots3 = Integer.valueOf(String.valueOf(dots3Field.getValue()));
 
-                allResults.put(dataset.getValue(), Modeling.model(params, matrix));
-                chartCtx.chart(getChart());
+                for (int i = 0; i < gridSize; i++) {
+                    for (int j = 0; j < gridSize; j++) {
+                        if (segments[i][j].getDensity() == 0) {
+                            quantityDots = 0;
+                        } else if (segments[i][j].getDensity() == 1) {
+                            quantityDots = dots1;
+                        } else if (segments[i][j].getDensity() == 2) {
+                            quantityDots = dots2;
+                        } else quantityDots = dots3;
+
+                        if (gridSize == 10) {
+                            varRandom = 60;
+                            varSize = 5;
+                        } else if (gridSize == 20) {
+                            varRandom = 30;
+                            varSize = 4;
+                        } else {
+                            varRandom = 20;
+                            varSize = 3;
+                        }
+                        for (int k = 0; k < quantityDots; k++) {
+                            int X = segments[i][j].getX() + OFFSET_X + r.nextInt(varRandom);
+                            int Y = segments[i][j].getY() + OFFSET_Y + r.nextInt(varRandom);
+                            Dot d = new Dot(X, Y);
+                            dots.add(d);
+                        }
+                    }
+                }
+                matrix = fillMatrix();
+                drawDots(varSize);
+            }
+
+        });
+    }
+
+    private void drawDots(int varSize) {
+        for (Dot d : dots) {
+            drawCircle(d.getX(), d.getY(), varSize, "rgb(255, 0, 0)");
+        }
+    }
+
+    private int[][] fillMatrix() {
+        double R = Double.valueOf(radiusField.getValue());
+        int[][] matrix;
+
+        matrix = new int[dots.size()][];
+        for (int i = 0; i < dots.size(); i++) {
+            matrix[i] = new int[dots.size()];
+            for (int j = 0; j < dots.size(); j++) {
+                matrix[i][j] = 0;
+            }
+        }
+        for (int i = 0; i < dots.size(); i++) {
+            for (int j = 0; j < dots.size(); j++) {
+                double dist = Math.sqrt((dots.get(i).getX() - dots.get(j).getX()) *
+                        (dots.get(i).getX() - dots.get(j).getX()) +
+                        (dots.get(i).getY() - dots.get(j).getY()) *
+                                (dots.get(i).getY() - dots.get(j).getY()));
+
+                if (i != j && dist < R) {
+                    matrix[i][j] = 1;
+                    matrix[j][i] = 1;
+                    drawLine(dots.get(i), dots.get(j), "rgb(150, 150, 150)");
+                }
+            }
+        }
+        return matrix;
+    }
+
+    private void initCanvas() {
+        canvas = new Canvas(WIDTH, HEIGHT);
+        canvas.getElement().setAttribute("id", "canvas");
+        ctx = canvas.getContext();
+
+        canvas.addClickListener(new ComponentEventListener<ClickEvent<org.vaadin.pekkam.Canvas>>() {
+            @Override
+            public void onComponentEvent(ClickEvent clickEvent) {
+                double x = clickEvent.getClientX() - OFFSET_X;
+                double y = clickEvent.getClientY() - OFFSET_Y;
+
+                System.out.println("x: " + x + ", y: " + y);
+
+                int width = WIDTH / gridSize;
+                int height = HEIGHT / gridSize;
+
+                int newDensity = density;
+
+                for (int j = 1; j <= gridSize; j++) {
+                    if (x <= (width * j)) {
+                        j--;
+                        for (int i = 1; i <= gridSize; i++) {
+                            if (y <= (height * i)) {
+                                i--;
+                                Segment seg = segments[i][j];
+
+                                setDensity(seg, newDensity);
+                                newDensity--;
+                                if (newDensity > 0) {
+                                    if (i > 0) setDensity(segments[i - 1][j], newDensity);
+                                    if (i < gridSize - 1) setDensity(segments[i + 1][j], newDensity);
+                                    if (j > 0) setDensity(segments[i][j - 1], newDensity);
+                                    if (j < gridSize - 1) setDensity(segments[i][j + 1], newDensity);
+                                    if (i > 0 && j > 0) setDensity(segments[i - 1][j - 1], newDensity);
+                                    if (i < gridSize - 1 && j < gridSize - 1)
+                                        setDensity(segments[i + 1][j + 1], newDensity);
+                                    if (i > 0 && j < gridSize - 1) setDensity(segments[i - 1][j + 1], newDensity);
+                                    if (i < gridSize - 1 && j > 0) setDensity(segments[i + 1][j - 1], newDensity);
+                                }
+                                newDensity--;
+                                if (newDensity > 0) {
+                                    if (i > 1) setDensity(segments[i - 2][j], newDensity);
+                                    if (i < gridSize - 2) setDensity(segments[i + 2][j], newDensity);
+                                    if (i > 1 && j < gridSize - 1) setDensity(segments[i - 2][j + 1], newDensity);
+                                    if (i < gridSize - 2 && j < gridSize - 1)
+                                        setDensity(segments[i + 2][j + 1], newDensity);
+                                    if (i > 1 && j > 0) setDensity(segments[i - 2][j - 1], newDensity);
+                                    if (i < gridSize - 2 && j > 0) setDensity(segments[i + 2][j - 1], newDensity);
+                                    if (j > 1) setDensity(segments[i][j - 2], newDensity);
+                                    if (j < gridSize - 2) setDensity(segments[i][j + 2], newDensity);
+                                    if (j > 1 && i < gridSize - 1) setDensity(segments[i + 1][j - 2], newDensity);
+                                    if (j < gridSize - 2 && i < gridSize - 1)
+                                        setDensity(segments[i + 1][j + 2], newDensity);
+                                    if (j > 1 && i > 0) setDensity(segments[i - 1][j - 2], newDensity);
+                                    if (j < gridSize - 2 && i > 0) setDensity(segments[i - 1][j + 2], newDensity);
+                                    if (i > 1 && j > 1) setDensity(segments[i - 2][j - 2], newDensity);
+                                    if (i < gridSize - 2 && j < gridSize - 2)
+                                        setDensity(segments[i + 2][j + 2], newDensity);
+                                    if (i > 1 && j < gridSize - 2) setDensity(segments[i - 2][j + 2], newDensity);
+                                    if (i < gridSize - 2 && j > 1) setDensity(segments[i + 2][j - 2], newDensity);
+                                }
+
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
             }
         });
-
-
-        fieldsLayout1.add(dataset, group, upload, topology, vertices,
-                modelGroupName, modelGroup, modelBtn);
-        fieldsLayout2.add(infected, wormStrategy,
-                beta, antivirus, antivirusStrategy,
-                contrworm, contrwormStrategy, gamma, tR);
-    }
-
-    private void writeToFile(byte[][] matrix) {
-        try {
-            PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\tomak\\matrix.txt")));
-            for (int i = 0; i < matrix[0].length; i++) {
-                StringBuilder line = new StringBuilder();
-                for (int j = 0; j < matrix[i].length; j++) {
-                    line.append(matrix[i][j]);
-                }
-                dos.println(line.toString());
-            }
-            dos.close();
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found");
-        } catch (IOException e) {
-            System.out.println("IOException");
-        }
-    }
-
-    private byte[][] generateGraph(String topology, int size) {
-        Generator g;
-        if (topology.equals("Геометрический")) {
-            g = new Geometrical(size);
-        } else if (topology.equals("Безмасштабный")) {
-            g = new Scalefree(size);
-        } else if (topology.equals("Эрдеша-Реньи")){
-            g = new Rado(size);
-        } else {
-            g = new Generator(size);
-        }
-        return g.generate();
-    }
-
-    private String getChart() {
-        List<String> labels = new ArrayList<>();
-
-        int maxLabels = 0;
-        for (Map map : allResults.values()) {
-            if (map.keySet().size() > maxLabels) {
-                maxLabels = map.keySet().size();
-            }
-        }
-        for (int i = 0; i < maxLabels; i++) {
-            if (maxLabels < 100 || i % 4 == 0) {
-                labels.add(String.valueOf(i));
-            } else {
-                labels.add("");
-            }
-
-        }
-
-        LineChartConfig config = new LineChartConfig();
-        config
-                .data()
-                .labelsAsList(labels)
-                .and();
-
-        int color = 0;
-        for (Map.Entry<String, Map<Integer, Integer>> entry : allResults.entrySet()) {
-            config.data().addDataset(new LineDataset().type().label(entry.getKey()).borderColor(colors.get(color)).borderWidth(3))
-                    .and();
-            System.out.println(colors.get(color++));
-        }
-
-        config.
-                options()
-                .responsive(false)
-                .done();
-
-        int datasetIndex = 0;
-        for (Map<Integer, Integer> map : allResults.values()) {
-            List<Double> data = new ArrayList<>();
-            for (Integer value : map.values()) {
-                data.add((double) value);
-            }
-
-            LineDataset dataset = (LineDataset) config.data().getDatasetAtIndex(datasetIndex);
-            dataset.fill(false);
-            dataset.pointRadius(1);
-            dataset.dataAsList(data);
-
-            datasetIndex++;
-        }
-
-        return config.buildJson().toJson();
     }
 
     private void initUpload() {
         MemoryBuffer buffer = new MemoryBuffer();
         upload = new Upload(buffer);
-        upload.setDropLabel(new Label("Drop"));
-        upload.setUploadButton(new Button("Upload"));
-        upload.setVisible(false);
+        upload.setDropLabel(new Label("Перетащите файл"));
+        upload.setUploadButton(new Button("Загрузить"));
 
         upload.addSucceededListener(event -> {
-            Object[] result = null;
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(buffer.getInputStream()))) {
-                result = br.lines().toArray();
-            } catch (IOException e) {
-                System.out.println("IO exception");
-            }
+            Element image = new Element("object");
+            image.setAttribute("type", "image/png");
 
-            matrix = new byte[result.length][];
-            for (int i = 0; i < result.length; i++) {
-                String line = (String) result[i];
-                matrix[i] = new byte[line.length()];
-                for (int j = 0; j < line.length(); j++) {
-                    byte value = Byte.valueOf(String.valueOf(line.charAt(j)));
-                    matrix[i][j] = value;
-                }
-            }
+            StreamResource resource = new StreamResource("image.png",
+                    () -> buffer.getInputStream());
+
+            image.setAttribute("data", resource);
+            image.setAttribute("width", "0");
+            image.setAttribute("height", "0");
+
+            UI.getCurrent().getElement().appendChild(image);
+
+            ctx.drawImage(image.getAttribute("data"), 0, 0);
+
         });
 
         upload.getElement().addEventListener("file-remove", new DomEventListener() {
             @Override
             public void handleEvent(DomEvent arg0) {
-
+                ctx.clearRect(0, 0, WIDTH, HEIGHT);
             }
         });
-
     }
 
-    protected class Result {
-        private String name;
-        private double value;
+    private void initDotsFields() {
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        Label label = new Label("Число точек для каждого значения плотности");
+        layout.add(label);
+        layout.add(horizontalLayout);
 
-        public Result(String name, double value) {
-            this.name = name;
-            this.value = value;
-        }
+        dots1Field = new NumberField();
+        dots1Field.setMin(1);
+        dots1Field.setMax(3);
+        dots1Field.setStep(1);
+        dots1Field.setValue(1.0);
+        dots1Field.setHasControls(true);
+        horizontalLayout.add(dots1Field);
 
-        public String getName() {
-            return name;
-        }
+        dots2Field = new NumberField();
+        dots2Field.setMin(1);
+        dots2Field.setMax(6);
+        dots2Field.setStep(1);
+        dots2Field.setValue(2.0);
+        dots2Field.setHasControls(true);
+        horizontalLayout.add(dots2Field);
 
-        public void setName(String name) {
-            this.name = name;
-        }
+        dots3Field = new NumberField();
+        dots3Field.setMin(1);
+        dots3Field.setMax(9);
+        dots3Field.setStep(1);
+        dots3Field.setValue(3.0);
+        dots3Field.setHasControls(true);
+        horizontalLayout.add(dots3Field);
 
-        public double getValue() {
-            return value;
-        }
+        radiusField = new TextField("Радиус");
+        radiusField.setValue("40");
+        layout.add(radiusField);
+    }
 
-        public void setValue(double value) {
-            this.value = value;
+    private void initDensityField() {
+        NumberField densityField = new NumberField("Плотность");
+        densityField.setMin(1);
+        densityField.setMax(3);
+        densityField.setStep(1);
+        densityField.setValue(1.0);
+        densityField.setHasControls(true);
+        layout.add(densityField);
+        densityField.addValueChangeListener(
+                new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<NumberField, Double>>() {
+                    @Override
+                    public void valueChanged(AbstractField.ComponentValueChangeEvent<NumberField, Double> numberFieldDoubleComponentValueChangeEvent) {
+                        density = Integer.valueOf(String.valueOf(densityField.getValue()));
+                    }
+                }
+        );
+    }
+
+    private void initSegments() {
+        segments = new Segment[gridSize][];
+        for (int i = 0; i < gridSize; i++) {
+            segments[i] = new Segment[gridSize];
+            for (int j = 0; j < gridSize; j++) {
+                segments[i][j] = new Segment(i * gridSize + j,
+                        WIDTH / gridSize * j,
+                        HEIGHT / gridSize * i);
+            }
         }
+    }
+
+    private void densityChanged(Segment s) {
+        int k = (245 - 255 / 4 * s.getDensity());
+        drawRect(s.getX(), s.getY(), WIDTH / gridSize, HEIGHT / gridSize,
+                String.format("rgb(%s, %s, %s)", k, k, k));
+    }
+
+    private void setDensity(Segment s, int density) {
+        int prevDensity = s.getDensity();
+        if (s.getDensity() < 2)
+            s.setDensity(s.getDensity() + density);
+        else s.setDensity(3);
+        if (prevDensity != s.getDensity()) {
+            densityChanged(s);
+        }
+    }
+
+    //Code for ComboBox size
+    private void initGridSize() {
+        ComboBox<String> comboBox = new ComboBox<>("Размер сетки");
+        comboBox.setItems("10", "20", "30");
+        layout.add(comboBox);
+        comboBox.addValueChangeListener(new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<ComboBox<String>, String>>() {
+            @Override
+            public void valueChanged(AbstractField.ComponentValueChangeEvent<ComboBox<String>, String> comboBoxStringComponentValueChangeEvent) {
+                gridSize = Integer.valueOf(comboBoxStringComponentValueChangeEvent.getValue());
+                initSegments();
+                for (int i = 1; i < gridSize; i++) {
+                    int x1 = WIDTH / gridSize * i;
+                    int x2 = WIDTH / gridSize * i;
+                    int y1 = 0;
+                    int y2 = HEIGHT;
+                    System.out.println("Vert: (" + x1 + ", " + y1 + "), (" + x2 + ", " + y2 + ")");
+                    drawLine(x1, y1, x2, y2, "black");
+
+                    x1 = 0;
+                    x2 = WIDTH;
+                    y1 = HEIGHT / gridSize * i;
+                    y2 = HEIGHT / gridSize * i;
+                    System.out.println("Hor: (" + x1 + ", " + y1 + "), (" + x2 + ", " + y2 + ")");
+                    drawLine(x1, y1, x2, y2, "black");
+                }
+            }
+        });
+    }
+
+    private void drawCircle(double x, double y, double r, String color) {
+        ctx.save();
+        ctx.setFillStyle(color);
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 2 * Math.PI, false);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    private void drawRect(double x, double y, double w, double h, String color) {
+        ctx.save();
+        ctx.setFillStyle(color);
+        ctx.setStrokeStyle("white");
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillRect(x, y, w, h);
+        ctx.restore();
+    }
+
+    private void drawLine(double x0, double y0, double x1, double y1, String color) {
+        ctx.setStrokeStyle(color);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.closePath();
+        ctx.stroke();
+    }
+
+    private void drawLine(Dot d1, Dot d2, String color) {
+        drawLine(d1.getX() - OFFSET_X, d1.getY() - OFFSET_Y, d2.getX() - OFFSET_X, d2.getY() - OFFSET_Y, color);
+    }
+
+    private void drawRandomCircle() {
+        ctx.save();
+        ctx.setLineWidth(2);
+        ctx.setFillStyle(getRandomColor());
+        ctx.beginPath();
+        ctx.arc(Math.random() * 500, Math.random() * 500,
+                10 + Math.random() * 90, 0, 2 * Math.PI, false);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    private String getRandomColor() {
+        return String.format("rgb(%s, %s, %s)", (int) (Math.random() * 256),
+                (int) (Math.random() * 256), (int) (Math.random() * 256));
     }
 }
