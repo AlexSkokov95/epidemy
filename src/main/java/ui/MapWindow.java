@@ -35,8 +35,8 @@ public class MapWindow extends HorizontalLayout {
     private static final int CHART_WIDTH = 1050;
 
     private VerticalLayout chartLayout;
-    private FormLayout fieldsLayout1;
-    private FormLayout fieldsLayout2;
+    private VerticalLayout fieldsLayout1;
+    private VerticalLayout fieldsLayout2;
 
     private Canvas canvas;
     private Canvas chartCanvas;
@@ -56,12 +56,16 @@ public class MapWindow extends HorizontalLayout {
         strategies.put("Контратака", "Contr");
 
         chartLayout = new VerticalLayout();
-        fieldsLayout1 = new FormLayout();
-        fieldsLayout2 = new FormLayout();
 
+        HorizontalLayout fieldsLayout = new HorizontalLayout();
+        fieldsLayout1 = new VerticalLayout();
+        fieldsLayout2 = new VerticalLayout();
+        fieldsLayout.add(fieldsLayout1, fieldsLayout2);
 
-        add(fieldsLayout1);
-        add(fieldsLayout2);
+        VerticalLayout l = new VerticalLayout();
+        l.add(fieldsLayout);
+
+        add(l);
         add(chartLayout);
         initUpload();
         initChart();
