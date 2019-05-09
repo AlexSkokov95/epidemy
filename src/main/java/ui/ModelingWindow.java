@@ -10,10 +10,12 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.radiobutton.RadioGroupVariant;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
@@ -110,9 +112,13 @@ public class ModelingWindow extends HorizontalLayout {
         topology.setValue("Геометрический");
         topology.setLabel("Топология графа");
 
-        TextField vertices = new TextField();
-        vertices.setValue("100");
+        NumberField vertices = new NumberField();
+        vertices.setValue(100.0);
         vertices.setLabel("Число узлов");
+        vertices.setMin(1);
+        vertices.setMax(1000);
+        vertices.setStep(10);
+        vertices.setHasControls(true);
 
         RadioButtonGroup<String> modelGroup = new RadioButtonGroup<>();
         modelGroup.setItems("SI", "SIR", "SIR с вакцинацией и без", "SIS");
@@ -121,42 +127,63 @@ public class ModelingWindow extends HorizontalLayout {
         modelGroup.setValue("SIR");
         modelGroup.setLabel("Модель");
 
-        TextField infected = new TextField();
-        infected.setValue("1");
+        NumberField infected = new NumberField();
+        infected.setValue(1.0);
         infected.setLabel("Число червей");
+        infected.setMin(1);
+        infected.setMax(20);
+        infected.setStep(1);
+        infected.setHasControls(true);
 
         ComboBox<String> wormStrategy = new ComboBox<>();
         wormStrategy.setItems("Линейный", "Случайный");
         wormStrategy.setValue("Линейный");
         wormStrategy.setLabel("Стратегия поиска червя");
 
-        TextField beta = new TextField();
-        beta.setValue("1");
+        NumberField beta = new NumberField();
+        beta.setValue(1.0);
         beta.setLabel("beta");
+        beta.setMin(1);
+        beta.setStep(1);
+        beta.setHasControls(true);
 
-        TextField antivirus = new TextField();
-        antivirus.setValue("5");
+        NumberField antivirus = new NumberField();
+        antivirus.setValue(5.0);
         antivirus.setLabel("Число антивирусов");
+        antivirus.setMin(0);
+        antivirus.setMax(20);
+        antivirus.setStep(1);
+        antivirus.setHasControls(true);
 
         ComboBox<String> antivirusStrategy = new ComboBox<>();
         antivirusStrategy.setItems("Линейный", "Случайный");
         antivirusStrategy.setValue("Линейный");
         antivirusStrategy.setLabel("Стратегия поиска антивируса");
 
-        TextField contrworm = new TextField();
-        contrworm.setValue("0");
+        NumberField contrworm = new NumberField();
+        contrworm.setValue(0.0);
         contrworm.setLabel("Число контрчервей");
+        contrworm.setMin(0);
+        contrworm.setMax(20);
+        contrworm.setStep(1);
+        contrworm.setHasControls(true);
 
         ComboBox<String> contrwormStrategy = new ComboBox<>();
         contrwormStrategy.setLabel("Стратегия поиска контрчервя");
         contrwormStrategy.setItems("Линейный", "Случайный", "Контратака");
         contrwormStrategy.setValue("Линейный");
 
-        TextField gamma = new TextField("gamma");
-        gamma.setValue("1");
+        NumberField gamma = new NumberField("gamma");
+        gamma.setValue(1.0);
+        gamma.setMin(1);
+        gamma.setStep(1);
+        gamma.setHasControls(true);
 
-        TextField tR = new TextField("Время начала работы");
-        tR.setValue("5");
+        NumberField tR = new NumberField("Время начала работы");
+        tR.setValue(5.0);
+        tR.setMin(0);
+        tR.setStep(1);
+        tR.setHasControls(true);
 
         group.addValueChangeListener(new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String>>() {
             @Override
@@ -166,7 +193,6 @@ public class ModelingWindow extends HorizontalLayout {
                     upload.setVisible(false);
                 } else {
                     topology.setVisible(false);
-                    vertices.setValue("");
                     upload.setVisible(true);
                 }
             }
@@ -207,10 +233,14 @@ public class ModelingWindow extends HorizontalLayout {
             @Override
             public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
                 if(group.getValue().equals("Генерировать")) {
-                    matrix = generateGraph(topology.getValue(), Integer.valueOf(vertices.getValue()));
+                    matrix = generateGraph(topology.getValue(),
+                            Integer.valueOf(String.valueOf(vertices.getValue())));
                     writeToFile(matrix);
+                } else if(((MemoryBuffer)upload.getReceiver()).getFileData() == null) {
+                    Notification.show("Загрузите файл с матрицей смежности графа",5000, Notification.Position.MIDDLE);
+                    return;
                 }
-                vertices.setValue(String.valueOf(matrix.length));
+                vertices.setValue((double)matrix.length);
                 Map<String, String> params = new HashMap<>();
                 switch (modelGroup.getValue()) {
                     case "SI":
@@ -226,16 +256,16 @@ public class ModelingWindow extends HorizontalLayout {
                         params.put("model", "SIR2");
                         break;
                 }
-                params.put("I0", infected.getValue());
+                params.put("I0", String.valueOf(infected.getValue()));
                 params.put("N", String.valueOf(matrix.length));
-                params.put("beta", beta.getValue());
+                params.put("beta", String.valueOf(beta.getValue()));
                 params.put("wormStr", strategies.get(wormStrategy.getValue()));
-                params.put("R0", antivirus.getValue());
+                params.put("R0", String.valueOf(antivirus.getValue()));
                 params.put("antivirusStr", strategies.get(antivirusStrategy.getValue()));
-                params.put("Rc0", contrworm.getValue());
+                params.put("Rc0", String.valueOf(contrworm.getValue()));
                 params.put("contrwormStr", strategies.get(contrwormStrategy.getValue()));
-                params.put("gamma", gamma.getValue());
-                params.put("tR", tR.getValue());
+                params.put("gamma", String.valueOf(gamma.getValue()));
+                params.put("tR", String.valueOf(tR.getValue()));
 
                 allResults.put(dataset.getValue(), Modeling.model(params, matrix));
                 chartCtx.chart(getChart());
