@@ -27,6 +27,7 @@ import generators.Generator;
 import generators.Geometrical;
 import generators.Rado;
 import generators.Scalefree;
+import sun.reflect.generics.tree.Tree;
 import ui.canvas.Canvas;
 import ui.canvas.CanvasRenderingContext2D;
 
@@ -237,7 +238,10 @@ public class ModelingWindow extends HorizontalLayout {
                 params.put("gamma", gamma.getValue());
                 params.put("tR", tR.getValue());
 
-                allResults.put(dataset.getValue(), Modeling.model(params, matrix));
+                TreeMap<Integer, Integer> avgResult = Modeling.model(params, matrix);
+                System.out.println(String.format("%s: T = %s, sumI = %s", dataset.getValue(),
+                        avgResult.lastEntry().getKey(), avgResult.lastEntry().getValue()));
+                allResults.put(dataset.getValue(), avgResult);
                 chartCtx.chart(getChart());
             }
         });

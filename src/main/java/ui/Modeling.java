@@ -10,7 +10,7 @@ public class Modeling {
 
     public static States[] states;
 
-    public static Map<Integer, Integer> model(Map<String, String> params, byte[][] adjacencyMatrix) {
+    public static TreeMap<Integer, Integer> model(Map<String, String> params, byte[][] adjacencyMatrix) {
         Map<Integer, List<Integer>> hitList = new HashMap<>();
         for (int i = 0; i < adjacencyMatrix[0].length; i++) {
             List<Integer> adjacentVertices = new ArrayList<>();
@@ -22,7 +22,7 @@ public class Modeling {
             hitList.put(i, adjacentVertices);
         }
 
-        Map<Integer, Integer> avgResult = new HashMap<>();
+        TreeMap<Integer, Integer> avgResult = new TreeMap<>();
         ArrayList<ArrayList<Integer>> res2 = new ArrayList<>();
         int sample = 50;
         int maxT = 0;
