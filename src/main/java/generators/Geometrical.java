@@ -17,16 +17,15 @@ public class Geometrical extends Generator {
         }
     }
 
-    public byte[][] generate() {
+    public byte[][] generate(double param) {
         double r = 0;
-        double p = 0.3;
         for (int i = 0; i < verticesNumber; i++) {
             for (int j = 0; j < verticesNumber; j++) {
                 if (i != j) {
                     r = Math.sqrt((coordinates[i][0] - coordinates[j][0]) * (coordinates[i][0] - coordinates[j][0]) +
                             (coordinates[i][1] - coordinates[j][1]) * (coordinates[i][1] - coordinates[j][1]));
                 }
-                if (r <= p) {
+                if (r <= param) {
                     adjacencyMatrix[i][j] = 1;
                     adjacencyMatrix[j][i] = 1;
                 } else {

@@ -9,6 +9,7 @@ public class Modeling {
     enum Strategies {Seq, Random, Contr}
 
     public static States[] states;
+    public static int[] iterations;
 
     public static Map<Integer, Integer> model(Map<String, String> params, byte[][] adjacencyMatrix) {
         Map<Integer, List<Integer>> hitList = new HashMap<>();
@@ -35,7 +36,7 @@ public class Modeling {
                 res = modelSI(params, hitList);
             } else if (params.get("model").equals("SIR2")) {
                 res = modelSIR2(params, hitList);
-            }  else if (params.get("model").equals("SIS")) {
+            } else if (params.get("model").equals("SIS")) {
                 res = modelSIS(params, hitList);
             }
             res2.add(res);
@@ -79,11 +80,13 @@ public class Modeling {
         Integer[] stateCodes = new Integer[N];
 
         states = new States[N];
+        iterations = new int[N];
         int sum = 0;
-        int t = 0;
+        int t = -1;
         ArrayList<Integer> result = new ArrayList<Integer>();
         for (int i = 0; i < N; i++) {
             states[i] = States.S;
+            iterations[i] = -1;
         }
 
         Random r = new Random();
@@ -91,6 +94,7 @@ public class Modeling {
             int index = r.nextInt(N);
             states[index] = States.I;
             stateCodes[index] = getInitialCode(States.I);
+            System.out.println("Worm: " + index);
         }
 
         while (true) {
@@ -101,11 +105,13 @@ public class Modeling {
                 }
             }
             result.add(sum);
-            System.out.println("T: " + t++ + ", sum: " + sum);
-            if (t == 200) break;
+            System.out.println("T: " + ++t + ", sum: " + sum);
+            if (t == 500) break;
             if (sum == N) break;
             for (int i = 0; i < N; i++) {
-                if (states[i] == States.I) {
+                System.out.println("i: " + i + " iter: " + iterations[i]);
+                if (states[i] == States.I && (iterations[i] < t || iterations[i] == -1)) {
+                    System.out.println("infect");
                     for (int j = 0; j < beta; j++) {
                         List<Integer> hit = hitList.get(i);
                         if (strategy == Strategies.Seq) {
@@ -113,18 +119,20 @@ public class Modeling {
                                 int adjacentVertex = hit.get(k);
                                 if (states[adjacentVertex] == States.S) {
                                     states[adjacentVertex] = States.I;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 }
                             }
                         } else if (strategy == Strategies.Random) {
                             int adjacentVertex = r.nextInt(hit.size());
                             states[hit.get(adjacentVertex)] = States.I;
+                            iterations[hit.get(adjacentVertex)] = t;
                         }
                     }
                 }
             }
         }
-        writeStatesToFile(stateCodes);
+   //     writeStatesToFile(stateCodes);
         return result;
     }
 
@@ -143,11 +151,14 @@ public class Modeling {
         Integer[] stateCodes = new Integer[N];
 
         states = new States[N];
+        iterations = new int[N];
+
         int sumI = 0, sumR = 0;
-        int t = 0;
+        int t = -1;
         ArrayList<Integer> result = new ArrayList<Integer>();
         for (int i = 0; i < N; i++) {
             states[i] = States.S;
+            iterations[i] = -1;
         }
 
         Random r = new Random();
@@ -167,10 +178,11 @@ public class Modeling {
             states[r.nextInt(N)] = States.Rc;
             stateCodes[index] = getInitialCode(States.Rc);
         }
+        System.out.println("R0: " + R0 + ", Rc0: " + Rc0);
 
         while (true) {
 
-            if(t % tR == 0 ) {
+            if (R0 > 0 && t % tR == 0) {
                 states[r.nextInt(N)] = States.Ra;
             }
 
@@ -183,15 +195,15 @@ public class Modeling {
             for (int i = 0; i < N; i++) {
                 if (states[i] == States.R || states[i] == States.Rc || states[i] == States.Ra) sumR++;
             }
-            System.out.println("T: " + t++ + ", sumI: " + sumI + ", sumR: " + sumR);
-            if (sumI == 0) break;
+            System.out.println("T: " + ++t + ", sumI: " + sumI + ", sumR: " + sumR);
+            if (sumI == 0 || (sumR == 0 && sumI == N)) break;
             for (int i = 0; i < N; i++) {
                 if (states[i] == States.S) {
                     continue;
                 }
 
                 List<Integer> hit = hitList.get(i);
-                if (hit.size() == 0)
+                if (hit == null || hit.size() == 0)
                     continue;
                 if (states[i] == States.Rc && t >= tR) {
                     for (int j = 0; j < gamma; j++) {
@@ -201,6 +213,7 @@ public class Modeling {
                                 if (states[adjacentVertex] == States.S
                                         || states[adjacentVertex] == States.I) {
                                     states[adjacentVertex] = States.Rc;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 }
                             }
@@ -209,17 +222,19 @@ public class Modeling {
                             if (states[index] == States.I
                                     || states[index] == States.S) {
                                 states[index] = States.Rc;
+                                iterations[index] = t;
                             }
                         }
 
                     }
-                } else if (states[i] == States.Ra && t >= tR) {
+                } else if (states[i] == States.Ra && t >= tR ) {
                     for (int j = 0; j < gamma; j++) {
                         if (antivirusStrategy == Strategies.Seq) {
                             for (int k = 0; k < hit.size(); k++) {
                                 int adjacentVertex = hit.get(k);
                                 if (states[adjacentVertex] == States.I) {
                                     states[adjacentVertex] = States.R;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 }
                             }
@@ -227,20 +242,23 @@ public class Modeling {
                             int index = r.nextInt(hit.size());
                             if (states[hit.get(index)] == States.I) {
                                 states[hit.get(index)] = States.R;
+                                iterations[hit.get(index)] = t;
                             }
                         }
 
                     }
-                } else if (states[i] == States.I) {
+                } else if (states[i] == States.I && (iterations[i] < t || iterations[i] == -1)) {
                     for (int j = 0; j < beta; j++) {
                         if (wormStrategy == Strategies.Seq) {
                             for (int k = 0; k < hit.size(); k++) {
                                 int adjacentVertex = hit.get(k);
                                 if (states[adjacentVertex] == States.S) {
                                     states[adjacentVertex] = States.I;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 } else if (states[adjacentVertex] == States.Rc && contrwormStrategy == Strategies.Contr && t >= tR) {
                                     states[i] = States.Rc;
+                                    iterations[i] = t;
                                     break;
                                 }
                             }
@@ -248,15 +266,17 @@ public class Modeling {
                             int index = hit.get(r.nextInt(hit.size()));
                             if (states[index] == States.S) {
                                 states[index] = States.I;
+                                iterations[index] = t;
                             } else if (states[index] == States.Rc && contrwormStrategy == Strategies.Contr && t >= tR) {
                                 states[i] = States.Rc;
+                                iterations[index] = t;
                             }
                         }
                     }
                 }
             }
         }
-        writeStatesToFile(stateCodes);
+        //writeStatesToFile(stateCodes);
         return result;
     }
 
@@ -274,11 +294,13 @@ public class Modeling {
         Integer[] stateCodes = new Integer[N];
 
         states = new States[N];
+        iterations = new int[N];
         int sumI = 0, sumR = 0;
-        int t = 0;
+        int t = -1;
         ArrayList<Integer> result = new ArrayList<Integer>();
         for (int i = 0; i < N; i++) {
             states[i] = States.S;
+            iterations[i] = -1;
         }
 
         Random r = new Random();
@@ -301,7 +323,7 @@ public class Modeling {
 
         while (true) {
 
-            if(t % tR == 0 ) {
+            if (R0 > 0 && t % tR == 0) {
                 states[r.nextInt(N)] = States.Ra;
             }
 
@@ -314,15 +336,15 @@ public class Modeling {
             for (int i = 0; i < N; i++) {
                 if (states[i] == States.R || states[i] == States.Rc || states[i] == States.Ra) sumR++;
             }
-            System.out.println("T: " + t++ + ", sumI: " + sumI + ", sumR: " + sumR);
-            if (sumI == 0) break;
+            System.out.println("T: " + ++t + ", sumI: " + sumI + ", sumR: " + sumR);
+            if (sumI == 0 || (sumR == 0 && sumI == N)) break;
             for (int i = 0; i < N; i++) {
                 if (states[i] == States.S) {
                     continue;
                 }
 
                 List<Integer> hit = hitList.get(i);
-                if (hit.size() == 0)
+                if (hit == null || hit.size() == 0)
                     continue;
                 if (states[i] == States.Rc && t >= tR) {
                     for (int j = 0; j < gamma; j++) {
@@ -332,6 +354,7 @@ public class Modeling {
                                 if (states[adjacentVertex] == States.S
                                         || states[adjacentVertex] == States.I) {
                                     states[adjacentVertex] = States.Rc;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 }
                             }
@@ -340,6 +363,7 @@ public class Modeling {
                             if (states[index] == States.I
                                     || states[index] == States.S) {
                                 states[index] = States.Rc;
+                                iterations[index] = t;
                             }
                         }
 
@@ -351,6 +375,7 @@ public class Modeling {
                                 int adjacentVertex = hit.get(k);
                                 if (states[adjacentVertex] == States.I) {
                                     states[adjacentVertex] = States.R;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 }
                             }
@@ -358,11 +383,12 @@ public class Modeling {
                             int index = r.nextInt(hit.size());
                             if (states[hit.get(index)] == States.I) {
                                 states[hit.get(index)] = States.R;
+                                iterations[hit.get(index)] = t;
                             }
                         }
 
                     }
-                } else if (states[i] == States.I) {
+                } else if (states[i] == States.I && (iterations[i] < t || iterations[i] == -1)) {
                     for (int j = 0; j < beta; j++) {
                         if (wormStrategy == Strategies.Seq) {
                             for (int k = 0; k < hit.size(); k++) {
@@ -370,6 +396,7 @@ public class Modeling {
                                 if (states[adjacentVertex] == States.S ||
                                         states[adjacentVertex] == States.Rc) {
                                     states[adjacentVertex] = States.I;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 }
                             }
@@ -378,13 +405,14 @@ public class Modeling {
                             if (states[index] == States.S ||
                                     states[index] == States.Rc) {
                                 states[index] = States.I;
+                                iterations[index] = t;
                             }
                         }
                     }
                 }
             }
         }
-        writeStatesToFile(stateCodes);
+       // writeStatesToFile(stateCodes);
         return result;
     }
 
@@ -400,11 +428,14 @@ public class Modeling {
         Integer[] stateCodes = new Integer[N];
 
         states = new States[N];
+        iterations = new int[N];
+
         int sumI = 0, sumR = 0;
-        int t = 0;
+        int t = -1;
         ArrayList<Integer> result = new ArrayList<Integer>();
         for (int i = 0; i < N; i++) {
             states[i] = States.S;
+            iterations[i] = -1;
         }
 
         Random r = new Random();
@@ -421,25 +452,28 @@ public class Modeling {
         }
 
         while (true) {
-            if (t > 150) {
+            if (t > 500) {
                 break;
             }
 
             sumI = 0;
             for (int i = 0; i < N; i++) {
                 if (states[i] == States.I) sumI++;
+                if (states[i] == States.R || states[i] == States.Rc || states[i] == States.Ra) sumR++;
             }
+
             result.add(sumI);
 
-            System.out.println("T: " + t++ + ", sumI: " + sumI);
-            if (sumI == 0) break;
+            System.out.println("T: " + ++t + ", sumI: " + sumI + ", sumR: " + sumR);
+
+            if (sumI == 0 || (sumR == 0 && sumI == N)) break;
             for (int i = 0; i < N; i++) {
                 if (states[i] == States.S) {
                     continue;
                 }
 
                 List<Integer> hit = hitList.get(i);
-                if (hit.size() == 0)
+                if (hit == null || hit.size() == 0)
                     continue;
                 if (states[i] == States.Rc && t >= tR) {
                     for (int j = 0; j < gamma; j++) {
@@ -449,6 +483,7 @@ public class Modeling {
                                 if (states[adjacentVertex] == States.S
                                         || states[adjacentVertex] == States.I) {
                                     states[adjacentVertex] = States.Rc;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 }
                             }
@@ -457,11 +492,12 @@ public class Modeling {
                             if (states[index] == States.I
                                     || states[index] == States.S) {
                                 states[index] = States.Rc;
+                                iterations[index] = t;
                             }
                         }
 
                     }
-                } else if (states[i] == States.I) {
+                } else if (states[i] == States.I && (iterations[i] < t || iterations[i] == -1)) {
                     for (int j = 0; j < beta; j++) {
                         if (wormStrategy == Strategies.Seq) {
                             for (int k = 0; k < hit.size(); k++) {
@@ -469,6 +505,7 @@ public class Modeling {
                                 if (states[adjacentVertex] == States.S ||
                                         states[adjacentVertex] == States.Rc) {
                                     states[adjacentVertex] = States.I;
+                                    iterations[adjacentVertex] = t;
                                     break;
                                 }
                             }
@@ -477,13 +514,14 @@ public class Modeling {
                             if (states[index] == States.S ||
                                     states[index] == States.Rc) {
                                 states[index] = States.I;
+                                iterations[index] = t;
                             }
                         }
                     }
                 }
             }
         }
-        writeStatesToFile(stateCodes);
+       // writeStatesToFile(stateCodes);
         return result;
     }
 
@@ -514,11 +552,11 @@ public class Modeling {
 
     private static void writeStatesToFile(Integer[] stateCodes) {
         try {
-            FileWriter dos = new FileWriter(new File("C:\\Users\\tomak\\matrix.txt"), true);
+            FileWriter dos = new FileWriter(new File("C:\\Users\\User\\matrix.txt"), true);
             for (int i = 0; i < states.length; i++) {
-               if(stateCodes[i] == null) {
-                   stateCodes[i] = getCode(states[i]);
-               }
+                if (stateCodes[i] == null) {
+                    stateCodes[i] = getCode(states[i]);
+                }
             }
 
             StringBuilder s = new StringBuilder();

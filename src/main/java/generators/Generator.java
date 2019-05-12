@@ -17,7 +17,7 @@ public class Generator {
         }
     }
 
-    public byte[][] generate() {
+    public byte[][] generate(double param) {
         for (int i = 0; i < verticesNumber; i++) {
             for (int j = 0; j < verticesNumber; j++) {
                 if(i != j) {

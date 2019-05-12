@@ -112,11 +112,16 @@ public class ModelingWindow extends HorizontalLayout {
         topology.setValue("Геометрический");
         topology.setLabel("Топология графа");
 
+        NumberField generatorParam = new NumberField("Радиус");
+        generatorParam.setValue(0.5);
+        generatorParam.setMin(0);
+        generatorParam.setStep(0.1);
+        generatorParam.setHasControls(true);
+
         NumberField vertices = new NumberField();
         vertices.setValue(100.0);
         vertices.setLabel("Число узлов");
-        vertices.setMin(1);
-        vertices.setMax(1000);
+        vertices.setMin(0);
         vertices.setStep(10);
         vertices.setHasControls(true);
 
@@ -189,11 +194,30 @@ public class ModelingWindow extends HorizontalLayout {
             @Override
             public void valueChanged(AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String> radioButtonGroupStringComponentValueChangeEvent) {
                 if (group.getValue().equals("Генерировать")) {
+                    if(topology.getValue().equals("Геометрический") || topology.getValue().equals("Эрдеша-Реньи")) {
+                        generatorParam.setVisible(true);
+                    }
                     topology.setVisible(true);
                     upload.setVisible(false);
                 } else {
                     topology.setVisible(false);
                     upload.setVisible(true);
+                    generatorParam.setVisible(false);
+                }
+            }
+        });
+
+        topology.addValueChangeListener(new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<ComboBox<String>, String>>() {
+            @Override
+            public void valueChanged(AbstractField.ComponentValueChangeEvent<ComboBox<String>, String> comboBoxStringComponentValueChangeEvent) {
+                if(topology.getValue().equals("Геометрический")) {
+                    generatorParam.setVisible(true);
+                    generatorParam.setLabel("Радиус");
+                } else if(topology.getValue().equals("Эрдеша-Реньи")) {
+                    generatorParam.setVisible(true);
+                    generatorParam.setLabel("Вероятность соединения");
+                } else {
+                    generatorParam.setVisible(false);
                 }
             }
         });
@@ -232,9 +256,11 @@ public class ModelingWindow extends HorizontalLayout {
         modelBtn.addClickListener(new ComponentEventListener<ClickEvent<Button>>() {
             @Override
             public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
+                chartLayout.remove(chartCanvas);
+                initChart();
                 if(group.getValue().equals("Генерировать")) {
                     matrix = generateGraph(topology.getValue(),
-                            Integer.valueOf(String.valueOf(vertices.getValue())));
+                            vertices.getValue().intValue(), generatorParam.getValue());
                     writeToFile(matrix);
                 } else if(((MemoryBuffer)upload.getReceiver()).getFileData() == null) {
                     Notification.show("Загрузите файл с матрицей смежности графа",5000, Notification.Position.MIDDLE);
@@ -256,16 +282,16 @@ public class ModelingWindow extends HorizontalLayout {
                         params.put("model", "SIR2");
                         break;
                 }
-                params.put("I0", String.valueOf(infected.getValue()));
+                params.put("I0", String.valueOf(infected.getValue().intValue()));
                 params.put("N", String.valueOf(matrix.length));
-                params.put("beta", String.valueOf(beta.getValue()));
+                params.put("beta", String.valueOf(beta.getValue().intValue()));
                 params.put("wormStr", strategies.get(wormStrategy.getValue()));
-                params.put("R0", String.valueOf(antivirus.getValue()));
+                params.put("R0", String.valueOf(antivirus.getValue().intValue()));
                 params.put("antivirusStr", strategies.get(antivirusStrategy.getValue()));
-                params.put("Rc0", String.valueOf(contrworm.getValue()));
+                params.put("Rc0", String.valueOf(contrworm.getValue().intValue()));
                 params.put("contrwormStr", strategies.get(contrwormStrategy.getValue()));
-                params.put("gamma", String.valueOf(gamma.getValue()));
-                params.put("tR", String.valueOf(tR.getValue()));
+                params.put("gamma", String.valueOf(gamma.getValue().intValue()));
+                params.put("tR", String.valueOf(tR.getValue().intValue()));
 
                 allResults.put(dataset.getValue(), Modeling.model(params, matrix));
                 chartCtx.chart(getChart());
@@ -273,7 +299,7 @@ public class ModelingWindow extends HorizontalLayout {
         });
 
 
-        fieldsLayout1.add(dataset, group, toDraw, upload, topology, vertices,
+        fieldsLayout1.add(dataset, group, toDraw, upload, topology, generatorParam, vertices,
                 modelGroup, modelBtn);
         fieldsLayout2.add(infected, wormStrategy,
                 beta, antivirus, antivirusStrategy,
@@ -282,7 +308,7 @@ public class ModelingWindow extends HorizontalLayout {
 
     private void writeToFile(byte[][] matrix) {
         try {
-            PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\tomak\\matrix.txt")));
+            PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\User\\matrix.txt")));
             for (int i = 0; i < matrix[0].length; i++) {
                 StringBuilder line = new StringBuilder();
                 for (int j = 0; j < matrix[i].length; j++) {
@@ -298,7 +324,7 @@ public class ModelingWindow extends HorizontalLayout {
         }
     }
 
-    private byte[][] generateGraph(String topology, int size) {
+    private byte[][] generateGraph(String topology, int size, double param) {
         Generator g;
         if (topology.equals("Геометрический")) {
             g = new Geometrical(size);
@@ -309,7 +335,7 @@ public class ModelingWindow extends HorizontalLayout {
         } else {
             g = new Generator(size);
         }
-        return g.generate();
+        return g.generate(param);
     }
 
     private String getChart() {
