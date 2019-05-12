@@ -18,7 +18,6 @@ import com.vaadin.flow.dom.Element;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.server.StreamResource;
-
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
 import ui.canvas.Canvas;
@@ -35,7 +34,7 @@ import java.util.Random;
 public class MapWindow extends HorizontalLayout {
     private static final int WIDTH = 600;
     private static final int HEIGHT = 600;
-    private static final int OFFSET_X = 688;
+    private static final int OFFSET_X = 832;
     private static final int OFFSET_Y = 16;
 
     private Button modelBtn;
@@ -43,7 +42,7 @@ public class MapWindow extends HorizontalLayout {
     private Canvas canvas;
     private Upload upload;
     private int gridSize = 20;
-    private int density = 2;
+    private int density = 1;
     CanvasRenderingContext2D ctx;
     private VerticalLayout layout;
 
@@ -51,7 +50,7 @@ public class MapWindow extends HorizontalLayout {
     NumberField dots2Field;
     NumberField dots3Field;
 
-    TextField radiusField;
+    NumberField radiusField;
 
     private Segment[][] segments;
     private List<Dot> dots;
@@ -96,7 +95,7 @@ public class MapWindow extends HorizontalLayout {
             @Override
             public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
                 try {
-                    PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\tomak\\matrix.txt")));
+                    PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\User\\matrix.txt")));
                     for (int i = 0; i < matrix[0].length; i++) {
                         StringBuilder line = new StringBuilder();
                         for (int j = 0; j < matrix[i].length; j++) {
@@ -121,9 +120,9 @@ public class MapWindow extends HorizontalLayout {
                 int varRandom;
                 int varSize = 0;
                 Random r = new Random();
-                int dots1 = Integer.valueOf(String.valueOf(dots1Field.getValue()));
-                int dots2 = Integer.valueOf(String.valueOf(dots2Field.getValue()));
-                int dots3 = Integer.valueOf(String.valueOf(dots3Field.getValue()));
+                int dots1 = dots1Field.getValue().intValue();
+                int dots2 = dots2Field.getValue().intValue();
+                int dots3 = dots3Field.getValue().intValue();
 
                 for (int i = 0; i < gridSize; i++) {
                     for (int j = 0; j < gridSize; j++) {
@@ -327,8 +326,11 @@ public class MapWindow extends HorizontalLayout {
         dots3Field.setHasControls(true);
         horizontalLayout.add(dots3Field);
 
-        radiusField = new TextField("Радиус");
-        radiusField.setValue("40");
+        radiusField = new NumberField("Радиус");
+        radiusField.setValue(40.0);
+        radiusField.setMin(1);
+        radiusField.setStep(5);
+        radiusField.setHasControls(true);
         layout.add(radiusField);
     }
 
@@ -344,7 +346,7 @@ public class MapWindow extends HorizontalLayout {
                 new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<NumberField, Double>>() {
                     @Override
                     public void valueChanged(AbstractField.ComponentValueChangeEvent<NumberField, Double> numberFieldDoubleComponentValueChangeEvent) {
-                        density = Integer.valueOf(String.valueOf(densityField.getValue()));
+                        density = densityField.getValue().intValue();
                     }
                 }
         );

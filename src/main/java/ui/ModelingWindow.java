@@ -10,10 +10,12 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.radiobutton.RadioGroupVariant;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
@@ -111,9 +113,18 @@ public class ModelingWindow extends HorizontalLayout {
         topology.setValue("Геометрический");
         topology.setLabel("Топология графа");
 
-        TextField vertices = new TextField();
-        vertices.setValue("100");
+        NumberField generatorParam = new NumberField("Радиус");
+        generatorParam.setValue(0.5);
+        generatorParam.setMin(0);
+        generatorParam.setStep(0.1);
+        generatorParam.setHasControls(true);
+
+        NumberField vertices = new NumberField();
+        vertices.setValue(100.0);
         vertices.setLabel("Число узлов");
+        vertices.setMin(0);
+        vertices.setStep(10);
+        vertices.setHasControls(true);
 
         RadioButtonGroup<String> modelGroup = new RadioButtonGroup<>();
         modelGroup.setItems("SI", "SIR", "SIR с вакцинацией и без", "SIS");
@@ -122,53 +133,92 @@ public class ModelingWindow extends HorizontalLayout {
         modelGroup.setValue("SIR");
         modelGroup.setLabel("Модель");
 
-        TextField infected = new TextField();
-        infected.setValue("1");
+        NumberField infected = new NumberField();
+        infected.setValue(1.0);
         infected.setLabel("Число червей");
+        infected.setMin(1);
+        infected.setMax(20);
+        infected.setStep(1);
+        infected.setHasControls(true);
 
         ComboBox<String> wormStrategy = new ComboBox<>();
         wormStrategy.setItems("Линейный", "Случайный");
         wormStrategy.setValue("Линейный");
         wormStrategy.setLabel("Стратегия поиска червя");
 
-        TextField beta = new TextField();
-        beta.setValue("1");
+        NumberField beta = new NumberField();
+        beta.setValue(1.0);
         beta.setLabel("beta");
+        beta.setMin(1);
+        beta.setStep(1);
+        beta.setHasControls(true);
 
-        TextField antivirus = new TextField();
-        antivirus.setValue("5");
+        NumberField antivirus = new NumberField();
+        antivirus.setValue(5.0);
         antivirus.setLabel("Число антивирусов");
+        antivirus.setMin(0);
+        antivirus.setMax(20);
+        antivirus.setStep(1);
+        antivirus.setHasControls(true);
 
         ComboBox<String> antivirusStrategy = new ComboBox<>();
         antivirusStrategy.setItems("Линейный", "Случайный");
         antivirusStrategy.setValue("Линейный");
         antivirusStrategy.setLabel("Стратегия поиска антивируса");
 
-        TextField contrworm = new TextField();
-        contrworm.setValue("0");
+        NumberField contrworm = new NumberField();
+        contrworm.setValue(0.0);
         contrworm.setLabel("Число контрчервей");
+        contrworm.setMin(0);
+        contrworm.setMax(20);
+        contrworm.setStep(1);
+        contrworm.setHasControls(true);
 
         ComboBox<String> contrwormStrategy = new ComboBox<>();
         contrwormStrategy.setLabel("Стратегия поиска контрчервя");
         contrwormStrategy.setItems("Линейный", "Случайный", "Контратака");
         contrwormStrategy.setValue("Линейный");
 
-        TextField gamma = new TextField("gamma");
-        gamma.setValue("1");
+        NumberField gamma = new NumberField("gamma");
+        gamma.setValue(1.0);
+        gamma.setMin(1);
+        gamma.setStep(1);
+        gamma.setHasControls(true);
 
-        TextField tR = new TextField("Время начала работы");
-        tR.setValue("5");
+        NumberField tR = new NumberField("Время начала работы");
+        tR.setValue(5.0);
+        tR.setMin(0);
+        tR.setStep(1);
+        tR.setHasControls(true);
 
         group.addValueChangeListener(new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String>>() {
             @Override
             public void valueChanged(AbstractField.ComponentValueChangeEvent<RadioButtonGroup<String>, String> radioButtonGroupStringComponentValueChangeEvent) {
                 if (group.getValue().equals("Генерировать")) {
+                    if(topology.getValue().equals("Геометрический") || topology.getValue().equals("Эрдеша-Реньи")) {
+                        generatorParam.setVisible(true);
+                    }
                     topology.setVisible(true);
                     upload.setVisible(false);
                 } else {
                     topology.setVisible(false);
-                    vertices.setValue("");
                     upload.setVisible(true);
+                    generatorParam.setVisible(false);
+                }
+            }
+        });
+
+        topology.addValueChangeListener(new HasValue.ValueChangeListener<AbstractField.ComponentValueChangeEvent<ComboBox<String>, String>>() {
+            @Override
+            public void valueChanged(AbstractField.ComponentValueChangeEvent<ComboBox<String>, String> comboBoxStringComponentValueChangeEvent) {
+                if(topology.getValue().equals("Геометрический")) {
+                    generatorParam.setVisible(true);
+                    generatorParam.setLabel("Радиус");
+                } else if(topology.getValue().equals("Эрдеша-Реньи")) {
+                    generatorParam.setVisible(true);
+                    generatorParam.setLabel("Вероятность соединения");
+                } else {
+                    generatorParam.setVisible(false);
                 }
             }
         });
@@ -207,11 +257,17 @@ public class ModelingWindow extends HorizontalLayout {
         modelBtn.addClickListener(new ComponentEventListener<ClickEvent<Button>>() {
             @Override
             public void onComponentEvent(ClickEvent<Button> buttonClickEvent) {
+                chartLayout.remove(chartCanvas);
+                initChart();
                 if(group.getValue().equals("Генерировать")) {
-                    matrix = generateGraph(topology.getValue(), Integer.valueOf(vertices.getValue()));
+                    matrix = generateGraph(topology.getValue(),
+                            vertices.getValue().intValue(), generatorParam.getValue());
                     writeToFile(matrix);
+                } else if(((MemoryBuffer)upload.getReceiver()).getFileData() == null) {
+                    Notification.show("Загрузите файл с матрицей смежности графа",5000, Notification.Position.MIDDLE);
+                    return;
                 }
-                vertices.setValue(String.valueOf(matrix.length));
+                vertices.setValue((double)matrix.length);
                 Map<String, String> params = new HashMap<>();
                 switch (modelGroup.getValue()) {
                     case "SI":
@@ -227,16 +283,16 @@ public class ModelingWindow extends HorizontalLayout {
                         params.put("model", "SIR2");
                         break;
                 }
-                params.put("I0", infected.getValue());
+                params.put("I0", String.valueOf(infected.getValue().intValue()));
                 params.put("N", String.valueOf(matrix.length));
-                params.put("beta", beta.getValue());
+                params.put("beta", String.valueOf(beta.getValue().intValue()));
                 params.put("wormStr", strategies.get(wormStrategy.getValue()));
-                params.put("R0", antivirus.getValue());
+                params.put("R0", String.valueOf(antivirus.getValue().intValue()));
                 params.put("antivirusStr", strategies.get(antivirusStrategy.getValue()));
-                params.put("Rc0", contrworm.getValue());
+                params.put("Rc0", String.valueOf(contrworm.getValue().intValue()));
                 params.put("contrwormStr", strategies.get(contrwormStrategy.getValue()));
-                params.put("gamma", gamma.getValue());
-                params.put("tR", tR.getValue());
+                params.put("gamma", String.valueOf(gamma.getValue().intValue()));
+                params.put("tR", String.valueOf(tR.getValue().intValue()));
 
                 TreeMap<Integer, Integer> avgResult = Modeling.model(params, matrix);
                 System.out.println(String.format("%s: T = %s, sumI = %s", dataset.getValue(),
@@ -247,7 +303,7 @@ public class ModelingWindow extends HorizontalLayout {
         });
 
 
-        fieldsLayout1.add(dataset, group, toDraw, upload, topology, vertices,
+        fieldsLayout1.add(dataset, group, toDraw, upload, topology, generatorParam, vertices,
                 modelGroup, modelBtn);
         fieldsLayout2.add(infected, wormStrategy,
                 beta, antivirus, antivirusStrategy,
@@ -256,7 +312,7 @@ public class ModelingWindow extends HorizontalLayout {
 
     private void writeToFile(byte[][] matrix) {
         try {
-            PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\tomak\\matrix.txt")));
+            PrintWriter dos = new PrintWriter(new FileWriter(new File("C:\\Users\\User\\matrix.txt")));
             for (int i = 0; i < matrix[0].length; i++) {
                 StringBuilder line = new StringBuilder();
                 for (int j = 0; j < matrix[i].length; j++) {
@@ -272,7 +328,7 @@ public class ModelingWindow extends HorizontalLayout {
         }
     }
 
-    private byte[][] generateGraph(String topology, int size) {
+    private byte[][] generateGraph(String topology, int size, double param) {
         Generator g;
         if (topology.equals("Геометрический")) {
             g = new Geometrical(size);
@@ -283,7 +339,7 @@ public class ModelingWindow extends HorizontalLayout {
         } else {
             g = new Generator(size);
         }
-        return g.generate();
+        return g.generate(param);
     }
 
     private String getChart() {

@@ -53,7 +53,8 @@ public class Scalefree extends Generator {
         return -1;
     }
 
-    public byte[][] generate() {
+    public byte[][] generate(double param) {
+        System.out.println("START");
         int v1, v2, v3, v4;
         v1 = findIsolatedVertex();
         do {
@@ -95,6 +96,7 @@ public class Scalefree extends Generator {
                 adjacencyMatrix[v2][v1] = 0;
             }
         }
+        System.out.println("FINISH");
         return adjacencyMatrix;
     }
 }
